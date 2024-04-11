@@ -112,8 +112,9 @@ extendable, another set of abstractions might work better for other questions.
 ## Publications and related projects
 ReQuSim was used for this publication:
 
-> ReQuSim: Faithfully simulating near-term quantum repeaters <br>
+> Faithfully simulating near-term quantum repeaters <br>
 > J. Wallnöfer, F. Hahn, F. Wiesner, N. Walk, J. Eisert <br>
+> PRX Quantum **5**, 010351 (2024); DOI: [10.1103/PRXQuantum.5.010351](https://doi.org/10.1103/PRXQuantum.5.010351)
 > Preprint: [arXiv:2212.03896 [quant-ph]](https://doi.org/10.48550/arXiv.2212.03896);
 > Code archive: [jwallnoefer/nearterm-qrepeater-sim-archive](https://github.com/jwallnoefer/nearterm-qrepeater-sim-archive)
 
