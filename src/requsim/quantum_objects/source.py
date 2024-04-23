@@ -77,8 +77,13 @@ class SchedulingSource(Source):
 
     Parameters
     ----------
-    see Source
-
+    world : World
+        This WorldObject is an object in this world.
+    position : scalar
+        Position in meters in the 1D line for this linear repeater.
+    target_stations : list of Stations
+        The two stations the source to which the source sends the entangled
+        pairs, usually the neighboring repeater stations.
     time_distribution : callable
         Used for scheduling. Should return the amount of time until the next
         SourceEvent should take place (possibly probabilistic).
