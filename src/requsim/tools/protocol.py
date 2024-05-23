@@ -20,11 +20,11 @@ class Protocol(ABC):
 
     """
 
-    def __init__(self, world):
+    def __init__(self, world=None):
         self.world = world
 
     @abstractmethod
-    def setup(self):
+    def setup(self, *args, **kwargs):
         """Setup function to be called after the world has been initialized.
 
         Should analyze the world to see if the protocol is applicable to the
