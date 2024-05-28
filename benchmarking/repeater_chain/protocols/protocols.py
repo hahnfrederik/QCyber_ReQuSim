@@ -551,3 +551,85 @@ class LocalProtocol(object):
 
     def check(self, message=None):
         self.check_scheduling(event_return_dict=message)
+
+
+class CallbackProtocol(BaseManylinkProtocol):
+
+    def _check_new_source_events(self, station):
+        sources_to_check = self.sources_by_station[station]
+        for source in sources_to_check:
+            host_station = self.host_station_by_source[source]
+            free_left, free_right = self.memory_check(host_station)
+            for _ in range(free_left):
+                new_event = self.sources_by_station[host_station][0].schedule_event()
+                new_event.add_callback(self.on_source_event_callback)
+            for _ in range(free_right):
+                new_event = self.sources_by_station[host_station][1].schedule_event()
+                new_event.add_callback(self.on_source_event_callback)
+
+    def on_source_event_callback(self, event_return_dict=None):
+        if event_return_dict is not None:
+            stations_to_check = event_return_dict["source"].target_stations
+            for station in stations_to_check:
+                has_overflowed = self._check_station_overflow(station)
+                if has_overflowed:
+                    self._check_new_source_events(station)
+            for station in stations_to_check:
+                self._check_swapping(station)
+
+
+    def on_swapping_event_callback(self, event_return_dict=None):
+        if event_return_dict["resolve_successful"]:
+            output_pair = event_return_dict["output_pair"]
+            if output_pair.is_between_stations(self.stations[0], self.stations[-1]):
+                self._eval_pair(output_pair)
+                # cleanup
+                output_pair.qubits[0].destroy()
+                output_pair.qubits[1].destroy()
+                output_pair.destroy()
+            station = event_return_dict["swapping_station"]
+            self._check_new_source_events(station)
+        else: # recheck on failed swapping
+            station = event_return_dict["event"].station
+            self._check_swapping(station)
+
+    def _check_swapping(self, station):
+        left_pairs, right_pairs = self.pairs_at_station(station)
+        num_swappings = min(len(left_pairs), len(right_pairs))
+        if num_swappings:
+            # get rid of events that are no longer scheduled
+            self.scheduled_swappings[station] = [
+                event
+                for event in self.scheduled_swappings[station]
+                if event in self.world.event_queue.queue
+            ]
+        for left_pair, right_pair in zip(
+            left_pairs[:num_swappings], right_pairs[:num_swappings]
+        ):
+            # assert that we do not schedule the same swapping more than once
+            try:
+                next(
+                    filter(
+                        lambda event: is_event_swapping_pairs(
+                            event, left_pair, right_pair
+                        ),
+                        self.scheduled_swappings[station],
+                    )
+                )
+                is_already_scheduled = True
+            except StopIteration:
+                is_already_scheduled = False
+            if not is_already_scheduled:
+                ent_swap_event = EntanglementSwappingEvent(
+                    time=self.world.event_queue.current_time,
+                    pairs=[left_pair, right_pair],
+                    station=station,
+                )
+                self.scheduled_swappings[station] += [ent_swap_event]
+                ent_swap_event.add_callback(self.on_swapping_event_callback)
+                self.world.event_queue.add_event(ent_swap_event)
+
+    def check(self, message=None):
+        if message is None:  # expected on first call
+            for station in self.stations:
+                self._check_new_source_events(station)

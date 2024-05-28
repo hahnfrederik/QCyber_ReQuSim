@@ -24,6 +24,7 @@ from protocols import (
     CustomManylinkProtocol,
     CompositeProtocol,
     LocalProtocol,
+    CallbackProtocol
 )
 
 C = 2e8  # speed of light in optical fiber
@@ -150,8 +151,9 @@ def run(length, max_iter, params, num_links, protocol):
         protocol.check(current_message)
         try:
             current_message = world.event_queue.resolve_next_event()
-        except IndexError:
+        except IndexError as e:
             world.print_status()
+            raise e
             from code import interact
 
             interact(local=locals())
@@ -165,6 +167,7 @@ if __name__ == "__main__":
         "ObserveOnly": ObserveOnlyManylinkProtocol(),
         "Custom": CustomManylinkProtocol(),
         "Local": CompositeProtocol(subprotocol=LocalProtocol()),
+        "Callback": CallbackProtocol()
     }
 
     num_parts = 16
