@@ -2,6 +2,4 @@ requsim.noise module
 --------------------
 
 .. automodule:: requsim.noise
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :special-members: __call__
