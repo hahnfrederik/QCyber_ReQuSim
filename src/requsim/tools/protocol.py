@@ -62,7 +62,14 @@ class TwoLinkProtocol(Protocol):
 
     def __init__(self, world=None, communication_speed=None):
         if world is not None or communication_speed is not None:
-            warn("Initializing Protocol with setup-dependent arguments (like world) is no longer recommended " + "and may be deprecated in future versions. " + "Protocols should be initializeable without tying it to a specific scenario. " + "Use the setup method to pass scenario-dependent arguments instead.", FutureWarning, stacklevel=2)
+            warn(
+                "Initializing Protocol with setup-dependent arguments (like world) is no longer recommended "
+                + "and may be deprecated in future versions. "
+                + "Protocols should be initializeable without tying it to a specific scenario. "
+                + "Use the setup method to pass scenario-dependent arguments instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
         self.time_list = []
         self.state_list = []
         self.communication_speed = communication_speed
@@ -94,18 +101,22 @@ class TwoLinkProtocol(Protocol):
         """
         if world is None:
             if self.world is None:
-                raise ValueError("world is not specified. " +
-                                 "Must be provided either as part of the initialization (deprecated) or "
-                                 "the setup method (recommended).")
+                raise ValueError(
+                    "world is not specified. "
+                    + "Must be provided either as part of the initialization (deprecated) or "
+                    "the setup method (recommended)."
+                )
             else:
                 pass
         else:
             self.world = world
         if communication_speed is None:
             if self.communication_speed is None:
-                raise ValueError("communication_speed is not specified. " +
-                                 "Must be provided either as part of the initialization (deprecated) or " +
-                                 "the setup method (recommended).")
+                raise ValueError(
+                    "communication_speed is not specified. "
+                    + "Must be provided either as part of the initialization (deprecated) or "
+                    + "the setup method (recommended)."
+                )
             else:
                 pass
         else:
