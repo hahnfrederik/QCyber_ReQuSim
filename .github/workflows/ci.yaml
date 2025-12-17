@@ -69,7 +69,7 @@ jobs:
 
   dist:
     name: Python bdist/wheel
-    needs: [pre-commit, test_pipenv, test_general]
+    needs: [pre-commit, test_devenv, test_general]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
