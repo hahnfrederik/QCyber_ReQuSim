@@ -18,8 +18,8 @@ jobs:
     name: Check code quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6.1.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.12'
       - uses: pre-commit/action@v3.0.1
@@ -28,8 +28,8 @@ jobs:
     name: Run tests in development environment with pipenv
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6.1.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Check package installation via setup.py works
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6.1.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.12'
       - run: pip install --upgrade setuptools
@@ -59,8 +59,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: Run Tests on ${{ matrix.os }} - Python ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6.1.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install --upgrade setuptools
@@ -72,10 +72,10 @@ jobs:
     needs: [pre-commit, test_pipenv, test_general]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.1.0
       - name: Fetch all tags, so setuptools_scm can determine version
         run: git fetch --prune --unshallow --tags
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -93,8 +93,8 @@ jobs:
     needs: [dist]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6.1.0
+      - uses: actions/setup-python@v6.1.0
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -116,7 +116,7 @@ jobs:
           name: dist
           path: dist
       - name: Publish distribution to Test PyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.14
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           user: __token__
           password: ${{ secrets.test_pypi_token }}
@@ -134,12 +134,12 @@ jobs:
           name: dist
           path: dist
       - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.14
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           user: __token__
           password: ${{ secrets.pypi_token }}
       - name: Publish distribution to Test PyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.14
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           user: __token__
           password: ${{ secrets.test_pypi_token }}
