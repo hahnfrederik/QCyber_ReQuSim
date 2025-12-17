@@ -9,22 +9,22 @@ an official release.
 
 ## Development Environment
 
-This project uses `pipenv` for setting up a stable development environment.
-The following assumes Python 3.8 and `pipenv` are installed on your system.
-You can set up the development environment like this:
-
+This project uses Python 3.12 and virtualenv for setting up the development
+environment:
 ```
 git clone https://github.com/jwallnoefer/requsim.git
 cd requsim
 git checkout dev
-pipenv sync --dev
-pipenv run pre-commit install
-pipenv shell
+python3.12 -m venv .venv
+source .venv/bin/activate
+```
+When the virtual environment is active, you can then install all the exact
+versions of this project's dependencies and set up pre-commit like this:
+```
+pip install -r requirements.txt
+pre-commit install
 ```
 
-This clones the repository and installs the necessary tools and dependencies
-into a Python virtual environment, that is managed by `pipenv`. `pipenv shell`
-launches a new subshell with this virtual environment activated.
 
 ## Tests
 
