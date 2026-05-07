@@ -90,8 +90,8 @@ ReQuSim has a different scope and aim from some other simulation packages for
 quantum networks (list obviously not exhaustive):
 
   * [SimulaQron](http://www.simulaqron.org/): A distributed classical simulation
-    of multiple quantum computers that can use real world classical  
-    communication to simulate communication times.
+    of multiple quantum computers that can use real world classical communication
+    to simulate communication times.
   * [NetSquid](https://netsquid.org/): Includes performance of physical and
     link layer in greater detail. Supports multiple ways to store quantum states
     (e.g. pure states, mixed states, stabilizers).
@@ -114,7 +114,7 @@ ReQuSim was used for this publication:
 
 > Faithfully simulating near-term quantum repeaters <br>
 > J. Wallnöfer, F. Hahn, F. Wiesner, N. Walk, J. Eisert <br>
-> PRX Quantum **5**, 010351 (2024); DOI: [10.1103/PRXQuantum.5.010351](https://doi.org/10.1103/PRXQuantum.5.010351)
+> PRX Quantum **5**, 010351 (2024); DOI: [10.1103/PRXQuantum.5.010351](https://doi.org/10.1103/PRXQuantum.5.010351) <br>
 > Preprint: [arXiv:2212.03896 [quant-ph]](https://doi.org/10.48550/arXiv.2212.03896);
 > Code archive: [jwallnoefer/nearterm-qrepeater-sim-archive](https://github.com/jwallnoefer/nearterm-qrepeater-sim-archive)
 
