@@ -361,6 +361,92 @@ class SourceEvent(Event):
         return {"source": self.source, "output_pair": new_pair}
 
 
+class MultiSourceEvent(Event):
+    """An Event generating an entangled maultipartite state.
+
+    Additional information in return dict of resolve method:
+
+    "source" : SourceMult
+        The source that generated the multipartite entangled state.
+    "output_pair" : mult_qubit
+        The entagled state that was generated.
+
+    Parameters
+    ----------
+    time : scalar
+        Time at which the event will be resolved.
+    source : SourceMulti
+        The source object generating the entangled n-qubit state.
+    initial_state : np.ndarray
+        Density matrix of the n-qubit system being generated.
+    callback_functions : list of callables, or None
+        these will be called in order, after the event has been resolved.
+        Callbacks can also be added with the add_callback method.
+        Default: None
+    *args, **kwargs :
+        additional optional args and kwargs to pass to the the
+        generate_pair method of `source`
+
+    Attributes
+    ----------
+    source
+    initial_state
+    generation_args : additional args for the generate_pair method of source
+    generation_kwargs : additional kwargs for the generate_pair method of source
+
+    """
+
+    def __init__(
+        self, time, source, initial_state, callback_functions=None, *args, **kwargs
+    ):
+        self.source = source
+        self.initial_state = initial_state
+        self.generation_args = args
+        self.generation_kwargs = kwargs
+        super(SourceEvent, self).__init__(
+            time=time,
+            required_objects=[self.source, *self.source.target_stations],
+            callback_functions=callback_functions,
+        )
+
+    def __repr__(self):
+        return (
+            self.__class__.__name__
+            + f"(time={self.time}, source={self.source}, initial_state={self.initial_state}, "
+            + f"callback_functions={self._callback_functions}, "
+            + ", ".join(map(str, self.generation_args))
+            + ", ".join(
+                [
+                    "{}={}".format(str(k), str(v))
+                    for k, v in self.generation_kwargs.items()
+                ]
+            )
+            + ")"
+        )
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__} at time={self.time} generating a state between stations "
+            + ", ".join([x.label for x in self.source.target_stations])
+            + "."
+        )
+
+    def _main_effect(self):
+        """Resolve the event.
+
+        Generates an entangled n-qubit state at the target stations of `self.source`.
+
+        Returns
+        -------
+        dict
+            The return_dict of this event is updated with this.
+
+        """
+        new_multi_qubit = self.source.generate_multi_qubit(
+            self.initial_state, *self.generation_args, **self.generation_kwargs
+        )
+        return {"source": self.source, "output_state": new_multi_qubit}
+
 class EntanglementSwappingEvent(Event):
     """An event to perform entanglement swapping.
 
@@ -385,7 +471,7 @@ class EntanglementSwappingEvent(Event):
         Default: None
 
     Attributes
-    ----------
+https://www.google.com/search?q=tony+tulathimutte+rejection&sca_esv=d40cf40a0657004d&biw=843&bih=934&sxsrf=ANbL-n4GfEX6Ask3iJ3o4RajVz2P85Z_VA%3A1778584690178&ei=cgwDapfFCtqExc8Phry9qAw&ved=0ahUKEwiXxqSl0LOUAxVaQvEDHQZeD8UQ4dUDCBE&uact=5&oq=tony+tulathimutte+rejection&gs_lp=Egxnd3Mtd2l6LXNlcnAiG3RvbnkgdHVsYXRoaW11dHRlIHJlamVjdGlvbjIKEC4YgAQYigUYQzIIEAAYgAQYywEyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAEMgYQABgWGB4yBhAAGBYYHjIGEAAYFhgeMgYQABgWGB5I2BJQjAJYnw1wAXgBkAEAmAGTAaABtAeqAQM3LjO4AQPIAQD4AQGYAgugAvEHwgIKEAAYRxjWBBiwA8ICDRAAGIAEGIoFGEMYsAPCAgoQABiABBiKBRhDwgIFEC4YgASYAwCIBgGQBgySBwM3LjSgB4VXsgcDNi40uAfqB8IHBDItMTHIBy-ACAE&sclient=gws-wiz-serp    ----------
     pairs
     station
 
