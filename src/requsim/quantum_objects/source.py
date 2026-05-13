@@ -1,4 +1,4 @@
-from . import WorldObject, Pair, mult_qubit
+from . import WorldObject, Pair, MultiQubit
 from .. import events
 
 
@@ -135,12 +135,13 @@ class SourceMult(Source):
         #else do for loop
         station = None
         qubits = []
-
+        
+        # one could also loop through target_station list
         for i in range(N):
             station = self.target_stations[i]
             qubit.append(station.create_qubit())
         
-        return mult_qubit(
+        return MultiQubit(
             world=self.world, qubits=qubits, initial_state=initial_state
         )
 
