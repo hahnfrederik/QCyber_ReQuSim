@@ -81,6 +81,29 @@ def _w_noise_function(rho, alpha):
     return alpha * rho + (1 - alpha) * mat.I(2) / 2 * np.trace(rho)
 
 
+def _ad_noise_function(rho, gamma):
+    """ A single-qubit amplitude damping noise channel.
+
+    Parameters
+    ----------
+    rho: np.darray
+        A single_qubit density matrix (2x2).
+    gamma : scalar
+        amplitude damping probability 0<= gamma <=1.
+        the excitation of the state decays with probability gamma.
+
+    Returns
+    -------
+    np.ndarray
+        The density matrix with the map applied.
+
+    """
+    K0 = np.diag([1, np.sqrt(1-gamma)])
+    K1 = np.sqrt(gamma) * np.array([[0,1],[0,0]])
+
+    return K0 @ rho @ mat.H(K0) + K1 @ rho @ mat.H(K1)
+
+
 #: Single-qubit Pauli-X noise channel. Takes error probability `epsilon` as additional argument.
 x_noise_channel = NoiseChannel(n_qubits=1, channel_function=_x_noise_function)
 #: Single-qubit Pauli-Y noise channel. Takes error probability `epsilon` as additional argument.
@@ -89,3 +112,5 @@ y_noise_channel = NoiseChannel(n_qubits=1, channel_function=_y_noise_function)
 z_noise_channel = NoiseChannel(n_qubits=1, channel_function=_z_noise_function)
 #: Single-qubit white noise (=fully depolarizing) channel. Takes error parameter `alpha` as additional argument.
 w_noise_channel = NoiseChannel(n_qubits=1, channel_function=_w_noise_function)
+#: Single-qubit amplitude namping channel. Takes error probability 'gamma' as additional argument
+ad_noise_channel = NoiseChannel(n_qubits=1, channel_function=_ad_noise_function)
