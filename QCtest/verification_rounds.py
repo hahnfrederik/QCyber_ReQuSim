@@ -54,10 +54,8 @@ def verify(rho, verifier = 0):
             p1 = 0 + np.imag(p1) * 1j
         if np.isclose(np.real(p2), 0):
             p2 = 0 + np.imag(p2) * 1j
-        if np.isclose(np.imag(p1), 0):
-            p1 = np.real(p1) + 0j
-        if np.isclose(np.imag(p2), 0):
-            p2 = np.real(p2) + 0j
+        p1 = np.real_if_close(p1)
+        p2 = np.real_if_close(p2)
         assert np.imag(p1) == 0, p1 
         assert np.imag(p2) == 0, p2
         assert np.real(p1) >=0, p1
@@ -78,6 +76,15 @@ def verify(rho, verifier = 0):
     #print(results)
     #print((np.sum(angles)/np.pi)%2)
     return (np.sum(angles)/np.pi)%2 == np.sum(results)%2
+
+
+
+#create quantum state that is epsilon far from ghz state as per paper
+def eps_error(epsilon):
+   '''
+   haven done anything yet
+   '''
+   return None
 
 
 if __name__ == "__main__":
