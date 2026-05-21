@@ -121,10 +121,11 @@ class SourceMult(Source):
             The newly generated states.
 
         """
+        import numpy as np
         
         #check the size of the initial state density matrix
         size = initial_state.shape[0]
-        N = np.log2(size))
+        N = np.log2(size)
         N = int(N)
         #potential sanity check: N should always be an integer
 
@@ -139,7 +140,7 @@ class SourceMult(Source):
         # one could also loop through target_station list
         for i in range(N):
             station = self.target_stations[i]
-            qubit.append(station.create_qubit())
+            qubits.append(station.create_qubit())
         
         return MultiQubit(
             world=self.world, qubits=qubits, initial_state=initial_state
