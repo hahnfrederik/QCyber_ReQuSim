@@ -368,7 +368,7 @@ class MultiSourceEvent(Event):
 
     "source" : SourceMult
         The source that generated the multipartite entangled state.
-    "output_pair" : mult_qubit
+    "output_pair" : MultiQubit
         The entagled state that was generated.
 
     Parameters
@@ -471,7 +471,7 @@ class EntanglementSwappingEvent(Event):
         Default: None
 
     Attributes
-https://www.google.com/search?q=tony+tulathimutte+rejection&sca_esv=d40cf40a0657004d&biw=843&bih=934&sxsrf=ANbL-n4GfEX6Ask3iJ3o4RajVz2P85Z_VA%3A1778584690178&ei=cgwDapfFCtqExc8Phry9qAw&ved=0ahUKEwiXxqSl0LOUAxVaQvEDHQZeD8UQ4dUDCBE&uact=5&oq=tony+tulathimutte+rejection&gs_lp=Egxnd3Mtd2l6LXNlcnAiG3RvbnkgdHVsYXRoaW11dHRlIHJlamVjdGlvbjIKEC4YgAQYigUYQzIIEAAYgAQYywEyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAEMgYQABgWGB4yBhAAGBYYHjIGEAAYFhgeMgYQABgWGB5I2BJQjAJYnw1wAXgBkAEAmAGTAaABtAeqAQM3LjO4AQPIAQD4AQGYAgugAvEHwgIKEAAYRxjWBBiwA8ICDRAAGIAEGIoFGEMYsAPCAgoQABiABBiKBRhDwgIFEC4YgASYAwCIBgGQBgySBwM3LjSgB4VXsgcDNi40uAfqB8IHBDItMTHIBy-ACAE&sclient=gws-wiz-serp    ----------
+    ----------
     pairs
     station
 
