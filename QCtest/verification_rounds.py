@@ -251,7 +251,7 @@ if __name__ == "__main__":
         p = (t_eps**2)/4
         iterN = int(15/p)
         print('-----------------------------------')
-        print('the noie being used is ', noise_string)
+        print('the noise being used is ', noise_string)
         print('the state being used is ', t_eps, ' far from the ghz state')
         print('theoretical minimum probability of state failing verification protocol: ', p)
 
