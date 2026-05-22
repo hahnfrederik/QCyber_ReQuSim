@@ -199,19 +199,25 @@ def verify(rho, verifier = 0):
 
 
 #create quantum state that is epsilon far from ghz state as per paper
-def eps_error(rho,N,noise_choice = 0,index=0,epsilon=0):
+def eps_error(rho,N,noise_choice = 0,index=0, error=0):
     if noise_choice == 0:  
-        rho = af.apply_single_qubit_map(_x_noise_function, index, rho, epsilon)
+        rho = af.apply_single_qubit_map(_x_noise_function, index, rho, error)
+        noise = 'x_noise'
     elif noise_choice == 1:
-        rho = af.apply_single_qubit_map(_y_noise_function, index, rho, epsilon)
+        rho = af.apply_single_qubit_map(_y_noise_function, index, rho, error)
+        noise = 'y_noise'
     elif noise_choice == 2:
-        rho = af.apply_single_qubit_map(_z_noise_function, index, rho, epsilon)
+        rho = af.apply_single_qubit_map(_z_noise_function, index, rho, error)
+        noise = 'z_noise'
     elif noise_choice == 3:
-        rho = af.apply_single_qubit_map(_w_noise_function, index, rho, epsilon)
+        # for w_noise we do one minus, since a the error probability is reversed in comparison to others
+        rho = af.apply_single_qubit_map(_w_noise_function, index, rho, 1-error)
+        noise = 'w_noise'
     else:
-        rho = af.apply_single_qubit_map(_ad_noise_function, index, rho, epsilon)
+        rho = af.apply_single_qubit_map(_ad_noise_function, index, rho, error)
+        noise = 'ad_noise'
     #print(epsilon)
-    return rho
+    return rho, noise
 
 
 if __name__ == "__main__":
@@ -219,25 +225,41 @@ if __name__ == "__main__":
     
     #create ghz state
     rho = mat.ghz(N) @ mat.H(mat.ghz(N))
-    
-    print(ghz_fidelity(rho, N))
     #create state that is epsilon far from ghz
-    
-    #exponent for noise parameter
-    exp = -1
-    
+
     min_eps = 0.1
     
     t_eps = None
-
-    noise_choice = 0
-
-    while t_eps is None or t_eps > min_eps:
-        rho = eps_error(rho, N, noise_choice, index = 0, epsilon = 10**exp)
-        t_eps = np.sqrt(1-(ghz_fidelity(rho, N)**2))
-        exp -= 1
     
-    print(t_eps)
-    for i in range(iterN):
-        hits += verify(rho)
-    print(hits/iterN)
+    for noise_choice in range(5):
+        #exponent for error parameter
+        exp = -1
+        # better name? variable to get a more fine tuned exponent
+        step = 0
+        while t_eps is None or not np.isclose(t_eps, min_eps):
+            rho2, noise_string = eps_error(rho, N, noise_choice, index = 0, error = 10**exp)
+            t_eps = np.sqrt(1-(ghz_fidelity(rho2, N)**2))
+            if t_eps > min_eps:
+                exp -= 1* (10**step)
+            if t_eps < min_eps:
+                exp += 1 * (10**step)
+                step -= 1
+                exp -= 1 * (10**step)
+        
+
+        # make iterN dependent on the probability
+        p = (t_eps**2)/4
+        iterN = int(15/p)
+        print('-----------------------------------')
+        print('the noie being used is ', noise_string)
+        print('the state being used is ', t_eps, ' far from the ghz state')
+        print('theoretical minimum probability of state failing verification protocol: ', p)
+
+        hits = 0
+        print('using ', iterN, ' iterations in simulation')
+        for i in range(iterN):
+            hits += verify(rho2)
+        print('simulation probability of the state failing verification: ', 1-hits/iterN)    
+        t_eps = None
+
+
