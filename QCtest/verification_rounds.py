@@ -1,6 +1,11 @@
 #in order to import the development code
 import sys
-sys.path.insert(0,'../src/requsim/libs')
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+LIB_PATH = BASE_DIR / "../src/requsim/libs"
+
+sys.path.insert(0, str(LIB_PATH.resolve()))
 
 import numpy as np
 import matrix as mat
