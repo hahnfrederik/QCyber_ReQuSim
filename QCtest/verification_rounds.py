@@ -252,15 +252,15 @@ if __name__ == "__main__":
         p = (t_eps**2)/4
         iterN = int(15/p)
         print('-----------------------------------')
-        print('the noie being used is ', noise_string)
-        print('the state being used is ', t_eps, ' far from the ghz state')
-        print('theoretical minimum probability of state failing verification protocol: ', p)
+        print('the noise being used is', noise_string)
+        print('the state being used is', t_eps, 'far from the ghz state')
+        print('theoretical minimum probability of state failing verification protocol:', p)
 
         hits = 0
-        print('using ', iterN, ' iterations in simulation')
+        print('using', iterN, 'iterations in simulation')
         for i in range(iterN):
             hits += verify(rho2)
-        print('simulation probability of the state failing verification: ', 1-hits/iterN)    
+        print('simulation probability of the state failing verification:', 1-hits/iterN)    
         t_eps = None
 
 
