@@ -1,5 +1,6 @@
 #in order to import the development code
 import sys
+import os
 sys.path.insert(0,'../src/requsim/libs')
 
 import numpy as np
@@ -251,7 +252,7 @@ if __name__ == "__main__":
         p = (t_eps**2)/4
         iterN = int(15/p)
         print('-----------------------------------')
-        print('the noise being used is ', noise_string)
+        print('the noie being used is ', noise_string)
         print('the state being used is ', t_eps, ' far from the ghz state')
         print('theoretical minimum probability of state failing verification protocol: ', p)
 
