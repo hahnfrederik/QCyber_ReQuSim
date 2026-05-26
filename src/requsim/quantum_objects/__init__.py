@@ -3,4 +3,4 @@ from .qubit import Qubit
 from .station import Station
 from .pair import Pair
 from .multi_qubit import MultiQubit
-from .source import Source, SchedulingSource
+from .source import Source, SchedulingSource, SourceMult
