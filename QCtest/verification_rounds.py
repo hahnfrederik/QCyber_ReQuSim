@@ -146,11 +146,18 @@ def verify(rho, verifier = 0):
     # not using verifier now, but inserted for later
     N = int(np.log2(rho.shape[0]))
     
-    # is there better way to generate angles
-    angles = np.random.rand(1,N-1) * np.pi
-    last_angle = np.pi - np.sum(angles) % np.pi    
-    angles = np.append(angles, [last_angle])
+    # # is there better way to generate angles
+    # angles = np.random.rand(1,N-1) * np.pi
+    # last_angle = np.pi - np.sum(angles) % np.pi   
+    # angles = np.append(angles, [last_angle])
     
+    ### alternative suggestion:
+    angles = np.random.rand(N - 1) * np.pi
+    # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
+    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
+    last_angle = (m * np.pi - np.sum(angles)) % np.pi 
+    angles = np.append(angles, last_angle)
+
     results = []
     
     for i in range(N):
@@ -191,13 +198,18 @@ def verify(rho, verifier = 0):
     
     
         #some sanity checks for rho_new
-        if i != 3:
+        if i != 3: # N-1 instead of 3?
             #collapse of state 
             rho_new = proj[choice] @ rho @ proj[choice] / probs[choice]
             rho = mat.ptrace(rho_new, [0])
     #print(results)
     #print((np.sum(angles)/np.pi)%2)
-    return (np.sum(angles)/np.pi)%2 == np.sum(results)%2
+    # return (np.sum(angles)/np.pi)%2 == np.sum(results)%2 
+
+    ### I think it is safer to make sure that both sides are integers so maybe:
+    expected_parity = int(round(np.sum(angles) / np.pi)) % 2
+    measured_parity = int(np.sum(results) % 2)
+    return expected_parity == measured_parity
 
 
 
@@ -214,7 +226,7 @@ def eps_error(rho,N,noise_choice = 0,index=0, error=0):
         noise = 'z_noise'
     elif noise_choice == 3:
         # for w_noise we do one minus, since a the error probability is reversed in comparison to others
-        rho = af.apply_single_qubit_map(_w_noise_function, index, rho, 1-error)
+        rho = af.apply_single_qubit_map(_w_noise_function, index, rho, 1-error)# Maybe for consistency we should rewrite the _w_noise_function
         noise = 'w_noise'
     else:
         rho = af.apply_single_qubit_map(_ad_noise_function, index, rho, error)
@@ -241,7 +253,7 @@ if __name__ == "__main__":
         step = 0
         while t_eps is None or not np.isclose(t_eps, min_eps):
             rho2, noise_string = eps_error(rho, N, noise_choice, index = 0, error = 10**exp)
-            t_eps = np.sqrt(1-(ghz_fidelity(rho2, N)**2))
+            t_eps = np.sqrt(1-(ghz_fidelity(rho2, N)**2)) # I think the square should just be correct if the ghz_fidelity function would output the square root of the overlap. But to me it looks like ⟨GHZ∣ρ∣GHZ⟩ is clalculated. So either we remove the square here or add a square root to the fidelity function.
             if t_eps > min_eps:
                 exp -= 1* (10**step)
             if t_eps < min_eps:
