@@ -4,8 +4,10 @@ import os
 sys.path.insert(0,'../src/requsim/libs')
 
 import numpy as np
-import matrix as mat
-import aux_functions as af
+#import matrix as mat
+import requsim.libs.matrix as mat
+#import aux_functions as af
+import requsim.libs.aux_functions as af
 """ Verification protocol form paper Experimental Quantum Electronic Voting
 """
 
