@@ -140,7 +140,7 @@ Here, opting for measuring each qubit and then calculate the collapsed state
 """
 
 def verify(rho, verifier = 0): 
-    # not using verifier now, but in if it is necessary later
+    # not using verifier now, but inserted for later
     N = int(np.log2(rho.shape[0]))
     
     # is there better way to generate angles
