@@ -132,14 +132,13 @@ def _ad_noise_function(rho, gamma):
 
 
 
-""" simulating measurement here.
-Question is how to simulate (all measurements at once or measure each qubit?)
-The question is not about the correctness, rather about efficency
 
+#simulating measurement here.
+#Question is how to simulate (all measurements at once or measure each qubit?)
+#The question is not about the correctness, rather about efficency
 
-Here, opting for measuring each qubit and then calculate the collapsed state
+#Here, opting for measuring each qubit and then calculate the collapsed state
 
-"""
 
 def verify(rho, verifier = 0): 
     # not using verifier now, but inserted for later
