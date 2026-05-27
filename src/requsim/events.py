@@ -936,9 +936,7 @@ class MeasurementEvent(Event):
         assert len(measuring_qubit) == 1
         self.multiqubit.update_time()
 
-        # compute N
         rho = self.multiqubit.state
-
         rho_reordered = mat.reorder(
             rho=rho, sys=[measuring_index[0]] + [ind for ind in rest_index]
         )
@@ -991,6 +989,8 @@ class MeasurementEvent(Event):
             rho_new = mat.ptrace(rho_new, [0])
 
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
+        assert len(rest_qubits) == N - 1
+        assert int(np.log2(rho_new.shape[0])) == N - 1
         new_multi = quantum_objects.MultiQubit(
             world=self.multiqubit.world, qubits=rest_qubits, initial_state=rho_new
         )

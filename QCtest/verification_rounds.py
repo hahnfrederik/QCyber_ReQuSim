@@ -8,6 +8,7 @@ import os
 import numpy as np
 import requsim.libs.matrix as mat
 import requsim.libs.aux_functions as af
+import requsim.tools.noise_channels as nc
 
 
 # function for ghz fidelity
@@ -25,110 +26,6 @@ def ghz_fidelity(rho: np.ndarray, num_parties):
     return fidelity
 
 
-# inserting noise channels manually
-
-
-def _x_noise_function(rho, epsilon):
-    """A single-qubit bit-flip channel.
-
-    Parameters
-    ----------
-    rho : np.ndarray
-        A single-qubit density matrix (2x2).
-    epsilon : scalar
-        Error probability 0 <= epsilon <= 1.
-
-    Returns
-    -------
-    np.ndarray
-        The density matrix with the map applied.
-
-    """
-    return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.X, rho), mat.H(mat.X))
-
-
-def _y_noise_function(rho, epsilon):
-    """A single-qubit bit-and-phase-flip channel.
-
-    Parameters
-    ----------
-    rho : np.ndarray
-        A single-qubit density matrix (2x2).
-    epsilon : scalar
-        Error probability 0 <= epsilon <= 1.
-
-    Returns
-    -------
-    np.ndarray
-        The density matrix with the map applied.
-
-    """
-    return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.Y, rho), mat.H(mat.Y))
-
-
-def _z_noise_function(rho, epsilon):
-    """A single-qubit phase-flip channel.
-
-    Parameters
-    ----------
-    rho : np.ndarray
-        A single-qubit density matrix (2x2).
-    epsilon : scalar
-        Error probability 0 <= epsilon <= 1.
-
-    Returns
-    -------
-    np.ndarray
-        The density matrix with the map applied.
-
-    """
-    return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.Z, rho), mat.H(mat.Z))
-
-
-def _w_noise_function(rho, alpha):
-    """A single-qubit depolarizing (white) noise channel.
-
-    Parameters
-    ----------
-    rho : np.ndarray
-        A single-qubit density matrix (2x2).
-    alpha : scalar
-        Error parameter alpha 0 <= alpha <= 1.
-        State is fully depolarized with probability (1-alpha)
-
-    Returns
-    -------
-    np.ndarray
-        The density matrix with the map applied.
-
-    """
-    # trace is necessary if dealing with unnormalized states (e.g. in apply_single_qubit_map)
-    return alpha * rho + (1 - alpha) * mat.I(2) / 2 * np.trace(rho)
-
-
-def _ad_noise_function(rho, gamma):
-    """A single-qubit amplitude damping noise channel.
-
-    Parameters
-    ----------
-    rho: np.darray
-        A single_qubit density matrix (2x2).
-    gamma : scalar
-        amplitude damping probability 0<= gamma <=1.
-        the excitation of the state decays with probability gamma.
-
-    Returns
-    -------
-    np.ndarray
-        The density matrix with the map applied.
-
-    """
-    K0 = np.diag([1, np.sqrt(1 - gamma)])
-    K1 = np.sqrt(gamma) * np.array([[0, 1], [0, 0]])
-
-    return K0 @ rho @ mat.H(K0) + K1 @ rho @ mat.H(K1)
-
-
 # simulating measurement here.
 # Question is how to simulate (all measurements at once or measure each qubit?)
 # The question is not about the correctness, rather about efficency
@@ -136,27 +33,28 @@ def _ad_noise_function(rho, gamma):
 # Here, opting for measuring each qubit and then calculate the collapsed state
 
 
+def angles(N):
+    angles = np.random.rand(N - 1) * np.pi
+    # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
+    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
+    last_angle = (
+        m * np.pi - np.sum(angles)
+    ) % np.pi  # @Jan: I think here we can actually just do -np.sum(angles) % np.pi
+    angles = np.append(angles, last_angle)
+    return angles
+
+
 def verify(rho, verifier=0):
     # not using verifier now, but inserted for later
     N = int(np.log2(rho.shape[0]))
 
-    # # is there better way to generate angles
-    # angles = np.random.rand(1,N-1) * np.pi
-    # last_angle = np.pi - np.sum(angles) % np.pi
-    # angles = np.append(angles, [last_angle])
-
-    ### alternative suggestion:
-    angles = np.random.rand(N - 1) * np.pi
-    # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
-    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
-    last_angle = (m * np.pi - np.sum(angles)) % np.pi
-    angles = np.append(angles, last_angle)
+    angles_list = angles(N)
 
     results = []
 
     for i in range(N):
-        state_vec_1 = 1 / np.sqrt(2) * (mat.z0 + np.exp(1j * angles[i]) * mat.z1)
-        state_vec_2 = 1 / np.sqrt(2) * (mat.z0 - np.exp(1j * angles[i]) * mat.z1)
+        state_vec_1 = 1 / np.sqrt(2) * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1)
+        state_vec_2 = 1 / np.sqrt(2) * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1)
 
         proj = []
         # compute projectors
@@ -195,7 +93,7 @@ def verify(rho, verifier=0):
         results.append(choice)
 
         # some sanity checks for rho_new
-        if i != 3:  # N-1 instead of 3?
+        if i != N - 1:
             # collapse of state
             rho_new = proj[choice] @ rho @ proj[choice] / probs[choice]
             rho = mat.ptrace(rho_new, [0])
@@ -204,7 +102,7 @@ def verify(rho, verifier=0):
     # return (np.sum(angles)/np.pi)%2 == np.sum(results)%2
 
     ### I think it is safer to make sure that both sides are integers so maybe:
-    expected_parity = int(round(np.sum(angles) / np.pi)) % 2
+    expected_parity = int(round(np.sum(angles_list) / np.pi)) % 2
     measured_parity = int(np.sum(results) % 2)
     return expected_parity == measured_parity
 
@@ -212,13 +110,13 @@ def verify(rho, verifier=0):
 # create quantum state that is epsilon far from ghz state as per paper
 def eps_error(rho, N, noise_choice=0, index=0, error=0):
     if noise_choice == 0:
-        rho = af.apply_single_qubit_map(_x_noise_function, index, rho, error)
+        rho = af.apply_single_qubit_map(nc._x_noise_function, index, rho, error)
         noise = "x_noise"
     elif noise_choice == 1:
-        rho = af.apply_single_qubit_map(_y_noise_function, index, rho, error)
+        rho = af.apply_single_qubit_map(nc._y_noise_function, index, rho, error)
         noise = "y_noise"
     elif noise_choice == 2:
-        rho = af.apply_single_qubit_map(_z_noise_function, index, rho, error)
+        rho = af.apply_single_qubit_map(nc._z_noise_function, index, rho, error)
         noise = "z_noise"
     elif noise_choice == 3:
         # for w_noise we do one minus, since a the error probability is reversed in comparison to others
@@ -227,7 +125,7 @@ def eps_error(rho, N, noise_choice=0, index=0, error=0):
         )  # Maybe for consistency we should rewrite the _w_noise_function
         noise = "w_noise"
     else:
-        rho = af.apply_single_qubit_map(_ad_noise_function, index, rho, error)
+        rho = af.apply_single_qubit_map(nc._ad_noise_function, index, rho, error)
         noise = "ad_noise"
     # print(epsilon)
     return rho, noise

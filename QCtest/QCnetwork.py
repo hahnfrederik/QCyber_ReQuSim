@@ -1,58 +1,80 @@
+"""
+Verification protocol using requsim
+"""
+
 from requsim.world import World
 from requsim.quantum_objects import Station, SourceMult, MultiQubit
 import requsim.libs.matrix as mat
 import numpy as np
 from requsim.events import MultiSourceEvent, MeasurementEvent
 from requsim.libs.aux_functions import distance
+from verification_rounds import angles
 
 C = 2e8  # speed of light
 
-N = 3  # number of users
+N = 10  # number of users
 
 speedMeas = 1e-9
 
+# put stations around source in a circle
+radius = 2e3
+
+# N+1 since we dont want the first and last to overlap
+radiants = np.linspace(0, 2 * np.pi, N + 1)
+
 world = World()
 # iterate later
-station_a = Station(world=world, position=np.array([0, 2000]))
-station_b = Station(world=world, position=np.array([-1000, -1000]))
-station_c = Station(world=world, position=np.array([-1000, -1000]))
+stations = []
+for i in range(N):
+    station = Station(
+        world=world, position=np.array([np.cos(radiants[i]), np.sin(radiants[i])])
+    )
+    stations += [station]
 source = SourceMult(
     world=world,
     position=np.array([0, 0]),
-    target_stations=[station_a, station_b, station_c],
+    target_stations=stations,
 )
 
 # density matrix
 ghz_rho = mat.ghz(N) @ mat.H(mat.ghz(N))
 
-# delays
-delay_a = distance(source, station_a) / C
-delay_b = distance(source, station_b) / C
-delay_c = distance(source, station_c) / C
+# delays are the same here
+delay = distance(source, stations[0]) / C
 
 event_source = MultiSourceEvent(
-    time=world.event_queue.current_time + np.max([delay_a, delay_b, delay_c]),
+    time=world.event_queue.current_time + delay,
     source=source,
     initial_state=ghz_rho,
 )
 
 world.event_queue.add_event(event_source)
 
-# event_measure = MeasurementEvent(time=world.event_queue.current_time + speedMeas,  )
-
-# not sure what delay to use, right now using maximum, with the logic, that at that time every station has a qubit from the shared resource
-# source.generate_multi_qubit(initial_state=ghz_rho, time=np.max([delay_a, delay_b, delay_c]), source = source)
-
 result = world.event_queue.resolve_next_event()
 
-event_measure = MeasurementEvent(
-    time=world.event_queue.current_time + speedMeas,
-    multiqubit=result["output_state"],
-    station=station_b,
-)
+# verifier calculates angles
 
-world.event_queue.add_event(event_measure)
+angles_list = angles(N)
 
-result = world.event_queue.resolve_next_event()
+for i in range(N):
+    base = [
+        1 / np.sqrt(2) * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1),
+        1 / np.sqrt(2) * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1),
+    ]
 
-print(result)
+    event_measure = MeasurementEvent(
+        time=world.event_queue.current_time + speedMeas,
+        multiqubit=result["output_state"],
+        station=stations[i],
+    )
+
+    world.event_queue.add_event(event_measure)
+meas_results = []
+while world.event_queue.queue:
+    result = world.event_queue.resolve_next_event()
+    print(result["event"])
+    print(result.keys())
+    meas_results += [result["measurement_outcome"]]
+    print("hi")
+
+print(meas_results)
