@@ -885,8 +885,9 @@ class MeasurementEvent(Event):
     """
 
     def __init__(
-            self, time, station, base =[mat.z0, mat.z1],callback_functions=None
+            self, time, multiqubit, station, base =[mat.z0, mat.z1],callback_functions=None
             ):
+        self.multiqubit = multiqubit
         self.station = station
         self.base = base
         super(MeasurementEvent, self).__init__(
@@ -896,7 +897,7 @@ class MeasurementEvent(Event):
     def __repr__(self):
         return(
             self.__class__.__name__
-            + f"(time={self.time}, station={self.station}, base = {base[0],base[1]},"
+            + f"(time={self.time}, multiqubit={self.multiqubit},station={self.station}, base = {base[0],base[1]},"
             + f"callback_functions={self._callback_functions}, "
             + ", ".join(map(str, self.generation_args))
             + ", ".join(
@@ -910,22 +911,99 @@ class MeasurementEvent(Event):
 
     def __str__(self):
         return(
-            f"{self.__class__.__name__} at time={self.time} generating a state  between stations "
-            + ", ".join([x.label for x in self.source.target_stations])
+                f"{self.__class__.__name__} at time={self.time} measureing state , {self.multiqubit.label} at station {self.station.label}"
             +"."
         )
 
     def _main_effect(self):
         """Resolve the event
 
-        Measrures a qubit at the station of 'self.station'
+        Measurement of a qubit at the station 'self.station'
 
         Returns
         -------
         dict
             The return_dict of this event is updated with this.
         """
-        return {}
+        measuring_qubit = []
+        measuring_index = []
+        rest_qubits = []
+        rest_index = []
+        
+        for idx, qubit in enumerate(self.multiqubit.qubits):
+            if qubit in self.station.qubits:
+                measuring_qubit += [qubit]
+                measuring_index += [idx]
+            else:
+                rest_qubits += [qubit]
+                rest_index += [idx]
+            assert len(measuring_qubit) == 1
+        self.multiqubit.update_time()
+        
+        
+        #compute N
+        rho = self.multiqubit.state
+        
+        rho_reordered = mat.reorder(
+                rho = rho,
+                sys = [measurement_index[0]] + [ind for ind in rest_index]
+                )
+
+        #possiblity for sanity check 
+        # also len(measuring_index) + len(rest_index) should also be N
+        N = int(np.log2(rho.shape[0]))
+
+        #compute projectors (maybe write this outside of this class)
+        proj = []
+        if i < N-1:
+            proj.append(mat.tensor(self.base[0] @ mat.H(self.base[0]),mat.I(2**(N-1-i))))
+            proj.append(mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2**(N-1-i))))
+        else:
+            proj.append(state_vec_1 @ mat.H(state_vec_1))
+            proj.append(state_vec_2 @ mat.H(state_vec_2))
+
+        # calculate probabilities
+        probs = []
+
+        p0 = np.trace(proj[0]@rho_reordered)
+        p1 = np.trace(proj[1]@rho_reordered)
+
+        #rounding of simulation errors
+        if np.isclose(np.real(p0), 0):
+            p0 = 0 + np.imag(p0) * 1j
+        if np.isclose(np.real(p1), 0):
+            p1 = 0 + np.imag(p1) * 1j
+        p0 = np.real_if_close(p0)
+        p1 = np.real_if_close(p1)
+
+        #sanity checks
+        assert np.imag(p0) == 0, p0
+        assert np.imag(p1) == 0, p1
+        assert np.real(p0) >=0, p0
+        assert np.real(p1) >= 0, p1
+        
+        probs.append(np.real(p0))
+        probs.append(np.real(p1))
+
+        #random choice of outcome
+        choice = np.random.choice(2,1,p=probs)[0]
+        
+        if N>1:
+            rho_new = proj[choice] @ rho_reordered @ proj[choice] / probs[choice]
+            rho_new = mat.prtrace(rho_new, [0])
+        
+        # make the rho_new the new Multiqubit state involving all stations except thesself.station
+        new_multi = quantum_objects.MultiQubit(
+                world = self.multiqubit.world,
+                qubits = rest_qubits,
+                initial_state = rho_new
+        )
+
+        #cleanup
+        for qubit in measuring_qubit:
+            qubit.destroy()
+        multiqubit.destroy()
+        return {"measurement_outcome": choice, "collapsed_state": rho_new, "measurement_station": self.station}
 
 
 class EventQueue(object):
