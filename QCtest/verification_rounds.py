@@ -1,11 +1,14 @@
+"""
+Verification protocol form paper Experimental Quantum Electronic Voting
+
+"""
+
 import sys
 import os
 import numpy as np
 import requsim.libs.matrix as mat
 import requsim.libs.aux_functions as af
 
-""" Verification protocol form paper Experimental Quantum Electronic Voting
-"""
 
 # function for ghz fidelity
 
