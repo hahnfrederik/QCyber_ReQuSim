@@ -98,10 +98,9 @@ class SourceMult(Source):
         "Source"
 
     """
-     
+
     def __init__(self, world, position, target_stations, label=None):
         super().__init__(world, position, target_stations, label=None)
-    
 
     def generate_multi_qubit(self, initial_state):
         """Generate an entangled states.
@@ -122,30 +121,26 @@ class SourceMult(Source):
 
         """
         import numpy as np
-        
-        #check the size of the initial state density matrix
+
+        # check the size of the initial state density matrix
         size = initial_state.shape[0]
         N = np.log2(size)
         N = int(N)
-        #potential sanity check: N should always be an integer
+        # potential sanity check: N should always be an integer
 
-
-        # if 2 just use generated_pair and return 
+        # if 2 just use generated_pair and return
         if N == 2:
             return super().generate_pair(self, initial_state)
-        #else do for loop
+        # else do for loop
         station = None
         qubits = []
-        
+
         # one could also loop through target_station list
         for i in range(N):
             station = self.target_stations[i]
             qubits.append(station.create_qubit())
-        
-        return MultiQubit(
-            world=self.world, qubits=qubits, initial_state=initial_state
-        )
 
+        return MultiQubit(world=self.world, qubits=qubits, initial_state=initial_state)
 
 
 class SchedulingSource(SourceMult):
@@ -208,4 +203,3 @@ class SchedulingSource(SourceMult):
         )
         self.event_queue.add_event(source_event)
         return source_event
-

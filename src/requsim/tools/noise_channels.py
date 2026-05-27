@@ -82,7 +82,7 @@ def _w_noise_function(rho, alpha):
 
 
 def _ad_noise_function(rho, gamma):
-    """ A single-qubit amplitude damping noise channel.
+    """A single-qubit amplitude damping noise channel.
 
     Parameters
     ----------
@@ -98,8 +98,8 @@ def _ad_noise_function(rho, gamma):
         The density matrix with the map applied.
 
     """
-    K0 = np.diag([1, np.sqrt(1-gamma)])
-    K1 = np.sqrt(gamma) * np.array([[0,1],[0,0]])
+    K0 = np.diag([1, np.sqrt(1 - gamma)])
+    K1 = np.sqrt(gamma) * np.array([[0, 1], [0, 0]])
 
     return K0 @ rho @ mat.H(K0) + K1 @ rho @ mat.H(K1)
 

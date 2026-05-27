@@ -61,19 +61,22 @@ psiminus = 1 / sqrt(2) * (tensor(z0, z1) - tensor(z1, z0))
 
 # expansion to multi qubit entangled states
 
+
 def ghz(n):
     z0s = [z0] * n
     z0s = tensor(*z0s)
     z1s = [z1] * n
     z1s = tensor(*z1s)
-    return 1/sqrt(2) * (z0s + z1s)
+    return 1 / sqrt(2) * (z0s + z1s)
+
 
 def wstate(n):
     states = []
     for i in range(n):
-        state = [z0]*i + [z1] + [z0]*((n-1)-i)
+        state = [z0] * i + [z1] + [z0] * ((n - 1) - i)
         states.append(tensor(*state))
-    return 1/sqrt(n) * np.sum(states, axis = 0)
+    return 1 / sqrt(n) * np.sum(states, axis=0)
+
 
 def znoisy(rho, n):  # znoise on the nth qubit, start counting from 0
     N = int(log(rho.shape[0], 2))

@@ -447,6 +447,7 @@ class MultiSourceEvent(Event):
         )
         return {"source": self.source, "output_state": new_multi_qubit}
 
+
 class EntanglementSwappingEvent(Event):
     """An event to perform entanglement swapping.
 
@@ -866,7 +867,7 @@ class MeasurementEvent(Event):
         Time at which the event will be resolved.
     denisty_matrix:
         the density matrix of the quantum system the station is part of.
-        Prefably should be the samllest density state the station is part of which is not a product state for efficency 
+        Prefably should be the samllest density state the station is part of which is not a product state for efficency
     station: Station
         the station where the measurement is performed.
     base: list
@@ -876,26 +877,28 @@ class MeasurementEvent(Event):
         these will be called in order, after the event has been resolved.
         Callbacks can also be added with the ass_callback method.
         Default: None
-    
+
     Attributes
     ----------
 
-    
+
 
     """
 
     def __init__(
-            self, time, multiqubit, station, base =[mat.z0, mat.z1],callback_functions=None
-            ):
+        self, time, multiqubit, station, base=[mat.z0, mat.z1], callback_functions=None
+    ):
         self.multiqubit = multiqubit
         self.station = station
         self.base = base
         super(MeasurementEvent, self).__init__(
-                time, required_objects=[self.station, self.multiqubit], callback_functions=callback_functions
-                )
-    
+            time,
+            required_objects=[self.station, self.multiqubit],
+            callback_functions=callback_functions,
+        )
+
     def __repr__(self):
-        return(
+        return (
             self.__class__.__name__
             + f"(time={self.time}, multiqubit={self.multiqubit},station={self.station}, base = {self.base[0],self.base[1]},"
             + f"callback_functions={self._callback_functions}"
@@ -903,9 +906,9 @@ class MeasurementEvent(Event):
         )
 
     def __str__(self):
-        return(
-                f"{self.__class__.__name__} at time={self.time} measureing state , {self.multiqubit.label} at station {self.station.label}"
-            +"."
+        return (
+            f"{self.__class__.__name__} at time={self.time} measureing state , {self.multiqubit.label} at station {self.station.label}"
+            + "."
         )
 
     def _main_effect(self):
@@ -922,7 +925,7 @@ class MeasurementEvent(Event):
         measuring_index = []
         rest_qubits = []
         rest_index = []
-        
+
         for idx, qubit in enumerate(self.multiqubit.qubits):
             if qubit in self.station.qubits:
                 measuring_qubit += [qubit]
@@ -932,25 +935,27 @@ class MeasurementEvent(Event):
                 rest_index += [idx]
         assert len(measuring_qubit) == 1
         self.multiqubit.update_time()
-        
-        
-        #compute N
-        rho = self.multiqubit.state
-        
-        rho_reordered = mat.reorder(
-                rho = rho,
-                sys = [measuring_index[0]] + [ind for ind in rest_index]
-                )
 
-        #possiblity for sanity check 
+        # compute N
+        rho = self.multiqubit.state
+
+        rho_reordered = mat.reorder(
+            rho=rho, sys=[measuring_index[0]] + [ind for ind in rest_index]
+        )
+
+        # possiblity for sanity check
         # also len(measuring_index) + len(rest_index) should also be N
         N = int(np.log2(rho.shape[0]))
 
-        #compute projectors (maybe write this outside of this class)
+        # compute projectors (maybe write this outside of this class)
         proj = []
-        if  N > 1:
-            proj.append(mat.tensor(self.base[0] @ mat.H(self.base[0]),mat.I(2**(N-1))))
-            proj.append(mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2**(N-1))))
+        if N > 1:
+            proj.append(
+                mat.tensor(self.base[0] @ mat.H(self.base[0]), mat.I(2 ** (N - 1)))
+            )
+            proj.append(
+                mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2 ** (N - 1)))
+            )
         else:
             proj.append(state_vec_1 @ mat.H(state_vec_1))
             proj.append(state_vec_2 @ mat.H(state_vec_2))
@@ -958,10 +963,10 @@ class MeasurementEvent(Event):
         # calculate probabilities
         probs = []
 
-        p0 = np.trace(proj[0]@rho_reordered)
-        p1 = np.trace(proj[1]@rho_reordered)
+        p0 = np.trace(proj[0] @ rho_reordered)
+        p1 = np.trace(proj[1] @ rho_reordered)
 
-        #rounding of simulation errors
+        # rounding of simulation errors
         if np.isclose(np.real(p0), 0):
             p0 = 0 + np.imag(p0) * 1j
         if np.isclose(np.real(p1), 0):
@@ -969,34 +974,36 @@ class MeasurementEvent(Event):
         p0 = np.real_if_close(p0)
         p1 = np.real_if_close(p1)
 
-        #sanity checks
+        # sanity checks
         assert np.imag(p0) == 0, p0
         assert np.imag(p1) == 0, p1
-        assert np.real(p0) >=0, p0
+        assert np.real(p0) >= 0, p0
         assert np.real(p1) >= 0, p1
-        
+
         probs.append(np.real(p0))
         probs.append(np.real(p1))
 
-        #random choice of outcome
-        choice = np.random.choice(2,1,p=probs)[0]
-        
-        if N>1:
+        # random choice of outcome
+        choice = np.random.choice(2, 1, p=probs)[0]
+
+        if N > 1:
             rho_new = proj[choice] @ rho_reordered @ proj[choice] / probs[choice]
             rho_new = mat.ptrace(rho_new, [0])
-        
+
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
         new_multi = quantum_objects.MultiQubit(
-                world = self.multiqubit.world,
-                qubits = rest_qubits,
-                initial_state = rho_new
+            world=self.multiqubit.world, qubits=rest_qubits, initial_state=rho_new
         )
 
-        #cleanup
+        # cleanup
         for qubit in measuring_qubit:
             qubit.destroy()
         self.multiqubit.destroy()
-        return {"measurement_outcome": choice, "collapsed_state": rho_new, "measurement_station": self.station}
+        return {
+            "measurement_outcome": choice,
+            "collapsed_state": rho_new,
+            "measurement_station": self.station,
+        }
 
 
 class EventQueue(object):

@@ -9,6 +9,7 @@ from requsim.events import (
     DiscardQubitEvent,
     EntanglementPurificationEvent,
     UnblockEvent,
+    MeasurementEvent,
 )
 from requsim.quantum_objects import Qubit, Pair, Station, Source, WorldObject
 import numpy as np
