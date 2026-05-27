@@ -891,21 +891,14 @@ class MeasurementEvent(Event):
         self.station = station
         self.base = base
         super(MeasurementEvent, self).__init__(
-                time, required_objects=[self.station, self.base], callback_functions=callback_function
+                time, required_objects=[self.station, self.multiqubit], callback_functions=callback_functions
                 )
     
     def __repr__(self):
         return(
             self.__class__.__name__
-            + f"(time={self.time}, multiqubit={self.multiqubit},station={self.station}, base = {base[0],base[1]},"
-            + f"callback_functions={self._callback_functions}, "
-            + ", ".join(map(str, self.generation_args))
-            + ", ".join(
-                [
-                    "{}={}".format(str(k), str(v))
-                    for k, v in self.generation_kwargs.items()
-                ]
-            )
+            + f"(time={self.time}, multiqubit={self.multiqubit},station={self.station}, base = {self.base[0],self.base[1]},"
+            + f"callback_functions={self._callback_functions}"
             + ")"
         )
 
@@ -937,7 +930,7 @@ class MeasurementEvent(Event):
             else:
                 rest_qubits += [qubit]
                 rest_index += [idx]
-            assert len(measuring_qubit) == 1
+        assert len(measuring_qubit) == 1
         self.multiqubit.update_time()
         
         
@@ -946,7 +939,7 @@ class MeasurementEvent(Event):
         
         rho_reordered = mat.reorder(
                 rho = rho,
-                sys = [measurement_index[0]] + [ind for ind in rest_index]
+                sys = [measuring_index[0]] + [ind for ind in rest_index]
                 )
 
         #possiblity for sanity check 
@@ -955,9 +948,9 @@ class MeasurementEvent(Event):
 
         #compute projectors (maybe write this outside of this class)
         proj = []
-        if i < N-1:
-            proj.append(mat.tensor(self.base[0] @ mat.H(self.base[0]),mat.I(2**(N-1-i))))
-            proj.append(mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2**(N-1-i))))
+        if  N > 1:
+            proj.append(mat.tensor(self.base[0] @ mat.H(self.base[0]),mat.I(2**(N-1))))
+            proj.append(mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2**(N-1))))
         else:
             proj.append(state_vec_1 @ mat.H(state_vec_1))
             proj.append(state_vec_2 @ mat.H(state_vec_2))
@@ -990,7 +983,7 @@ class MeasurementEvent(Event):
         
         if N>1:
             rho_new = proj[choice] @ rho_reordered @ proj[choice] / probs[choice]
-            rho_new = mat.prtrace(rho_new, [0])
+            rho_new = mat.ptrace(rho_new, [0])
         
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
         new_multi = quantum_objects.MultiQubit(
@@ -1002,7 +995,7 @@ class MeasurementEvent(Event):
         #cleanup
         for qubit in measuring_qubit:
             qubit.destroy()
-        multiqubit.destroy()
+        self.multiqubit.destroy()
         return {"measurement_outcome": choice, "collapsed_state": rho_new, "measurement_station": self.station}
 
 
