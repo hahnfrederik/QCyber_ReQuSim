@@ -1,4 +1,3 @@
-#in order to import the development code
 import sys
 import os
 sys.path.insert(0,'../src/requsim/libs')
@@ -253,7 +252,8 @@ if __name__ == "__main__":
         step = 0
         while t_eps is None or not np.isclose(t_eps, min_eps):
             rho2, noise_string = eps_error(rho, N, noise_choice, index = 0, error = 10**exp)
-            t_eps = np.sqrt(1-(ghz_fidelity(rho2, N)**2)) # I think the square should just be correct if the ghz_fidelity function would output the square root of the overlap. But to me it looks like ⟨GHZ∣ρ∣GHZ⟩ is clalculated. So either we remove the square here or add a square root to the fidelity function.
+            t_eps = np.sqrt(1-(ghz_fidelity(rho2, N)))
+
             if t_eps > min_eps:
                 exp -= 1* (10**step)
             if t_eps < min_eps:
