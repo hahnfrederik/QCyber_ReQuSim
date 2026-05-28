@@ -955,8 +955,8 @@ class MeasurementEvent(Event):
                 mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2 ** (N - 1)))
             )
         else:
-            proj.append(state_vec_1 @ mat.H(state_vec_1))
-            proj.append(state_vec_2 @ mat.H(state_vec_2))
+            proj.append(self.base[0] @ mat.H(self.base[0]))
+            proj.append(self.base[1] @ mat.H(self.base[1]))
 
         # calculate probabilities
         probs = []
@@ -987,10 +987,12 @@ class MeasurementEvent(Event):
         if N > 1:
             rho_new = proj[choice] @ rho_reordered @ proj[choice] / probs[choice]
             rho_new = mat.ptrace(rho_new, [0])
+        else:
+            rho_new = np.empty(0)
 
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
         assert len(rest_qubits) == N - 1
-        assert int(np.log2(rho_new.shape[0])) == N - 1
+        assert (rho_new.shape[0] == 0 and N-1 == 0) or int(np.log2(rho_new.shape[0])) == N - 1
         new_multi = quantum_objects.MultiQubit(
             world=self.multiqubit.world, qubits=rest_qubits, initial_state=rho_new
         )
@@ -1001,7 +1003,7 @@ class MeasurementEvent(Event):
         self.multiqubit.destroy()
         return {
             "measurement_outcome": choice,
-            "collapsed_state": rho_new,
+            "output_state": new_multi,
             "measurement_station": self.station,
         }
 
