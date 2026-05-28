@@ -56,25 +56,20 @@ result = world.event_queue.resolve_next_event()
 
 angles_list = angles(N)
 
+meas_results = []
 for i in range(N):
     base = [
         1 / np.sqrt(2) * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1),
         1 / np.sqrt(2) * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1),
     ]
-
     event_measure = MeasurementEvent(
         time=world.event_queue.current_time + speedMeas,
         multiqubit=result["output_state"],
         station=stations[i],
     )
-
     world.event_queue.add_event(event_measure)
-meas_results = []
-while world.event_queue.queue:
     result = world.event_queue.resolve_next_event()
-    print(result["event"])
-    print(result.keys())
     meas_results += [result["measurement_outcome"]]
-    print("hi")
+
 
 print(meas_results)
