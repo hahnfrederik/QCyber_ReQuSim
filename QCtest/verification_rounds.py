@@ -10,13 +10,9 @@ import requsim.libs.matrix as mat
 import requsim.libs.aux_functions as af
 import requsim.tools.noise_channels as nc
 from requsim.tools.protocol import Protocol
+from requsim.events import MeasurementEvent
 
 # function for ghz fidelity
-
-C = 2e8  # speed of light
-speedMeas = 1e-9  # speed of one photonic measurement
-
-
 def ghz_fidelity(rho: np.ndarray, num_parties):
     z0s = [mat.z0] * num_parties
     z0s = mat.tensor(*z0s)
@@ -57,13 +53,13 @@ class VerifyProtocol(Protocol):
     def __init__(self):
         self.time_list = []
         self.state_list = []
-        super(Verify, self).__init__(world=None)
+        super(VerifyProtocol, self).__init__(world=None)
 
     @property
     def data():
         return pd.Dataframe({"time": self.time_list, "state": self.state_list})
 
-    def setup(self, world=None, communitcation_speed=None):
+    def setup(self, world=None, communication_speed=None):
         """
         Should be run after the relevant WorldObjects have been added
         to the world.
@@ -108,22 +104,22 @@ class VerifyProtocol(Protocol):
 
         actors = self.world.world_objects["Station"]
 
-        assert len(stations) >= 2
+        assert len(actors) >= 2
         # more station checks?
-        self.stations = stations
+        self.actors = actors
 
         sources = self.world.world_objects["Source"]
         assert len(sources) == 1
-        assert sources[0].position == (0, 0)
+        assert (sources[0].position == [0, 0]).all
         self.source = sources[0]
         # more checks?
 
-    def _get_multiqubit(self):
+    def _get_multiqubit(self, N):
         try:
-            multiqubit = self.world.world_objects["MultiQubit"]
+            multiqubit = self.world.world_objects[f"{N}-qubit MultiQubit"]
         except KeyError:
             multiqubit = None
-        return multiqubit
+        return multiqubit[0]
 
     def _get_multiqubit_scheduled(self):
         return list(
@@ -141,21 +137,23 @@ class VerifyProtocol(Protocol):
         # 2 different scanrios
         # send GHZ
         if message["event"] == "send":
-            multiqubit = self._get_multiqubit()
-            if multiqubit == None:
-                self.source.schedule_event
+            # multiqubit = self._get_multiqubit()
+            # needs argument of size because of the label
+            # maybe better check or change label?
+            self.source.schedule_event()
         # measure GHZ (with bases)
         if message["event"] == "measure":
-            multiqubit = self._get_multiqubit()
+            current_N = len(self.world.world_objects["Qubit"])
+            multiqubit = self._get_multiqubit(current_N)
             base = message["base"]
             actor = message["actor"]
             measure_event = MeasurementEvent(
-                time=world.event_queue.current_time,
+                time=self.world.event_queue.current_time,
                 multiqubit=multiqubit,
                 station=actor,
                 base=base,
             )
-            self.event_queue.add_event(measure_event)
+            self.world.event_queue.add_event(measure_event)
 
 
 def angles(N):
@@ -166,7 +164,7 @@ def angles(N):
         m * np.pi - np.sum(angles)
     ) % np.pi  # @Jan: I think here we can actually just do -np.sum(angles) % np.pi
     angles = np.append(angles, last_angle)
-    return angles
+    return m, angles
 
 
 def verify(world, rho, verifier=None):
