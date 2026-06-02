@@ -43,11 +43,9 @@ class Voting:
         self.N = N
         self.C = C
         self.world = world
-        self.stations = stations
+        self.actors = stations
         self.source = source
-        self.delay = np.max(
-            [distance(source, station) / C for station in self.stations]
-        )
+        self.delay = np.max([distance(source, actor) / C for actor in self.actors])
         self.current_subround = (0, 0, 0)  # (p,k,n)
 
     def unique_index():
@@ -84,14 +82,14 @@ class Voting:
                     return -1
         return 0
 
-    def measure_ghz(result):
+    def measure_all_ghz(result):
         # each agent measures
         meas_result = []
-        for station in self.stations:
+        for actor in self.actors:
             event_measure = MeasurementEvent(
-                time=worldevent_queue.current_time + speedMeas,
+                time=world.event_queue.current_time + speedMeas,
                 multiqubit=result["output_state"],
-                station=station,
+                station=actor,
             )
             world.event_queue.add_event(event_measure)
             result = world.event_queue.resolve_next_event()
@@ -105,11 +103,11 @@ class Voting:
         ntallyrow = []
 
         # assuming here that meas_result has same indexing as self.stations
-        for i, station in enumerate(self.stations):
-            if station == station_a:
+        for i, actor in enumerate(self.actors):
+            if actor == station_a:
                 # station a checks if it is last round of privacy amplification
                 if self.current_subround < self.P - 1:
-                    # generat_random_bit
+                    # generate_random_bit
                     rand = np.random.randint(0, 2)
                 else:
                     # the kth bit of the candidate agent a wants to vote for

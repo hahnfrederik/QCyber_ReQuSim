@@ -893,7 +893,8 @@ class MeasurementEvent(Event):
         self.base = base
         super(MeasurementEvent, self).__init__(
             time,
-            required_objects=[self.station, self.multiqubit],
+            required_objects=[self.multiqubit]
+            + [qubit for qubit in self.multiqubit.qubits],
             callback_functions=callback_functions,
         )
 
@@ -992,7 +993,9 @@ class MeasurementEvent(Event):
 
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
         assert len(rest_qubits) == N - 1
-        assert (rho_new.shape[0] == 0 and N-1 == 0) or int(np.log2(rho_new.shape[0])) == N - 1
+        assert (rho_new.shape[0] == 0 and N - 1 == 0) or int(
+            np.log2(rho_new.shape[0])
+        ) == N - 1
         new_multi = quantum_objects.MultiQubit(
             world=self.multiqubit.world, qubits=rest_qubits, initial_state=rho_new
         )
