@@ -25,6 +25,17 @@ def ghz_fidelity(rho: np.ndarray, num_parties):
     return fidelity
 
 
+def angles(N):
+    angles = np.random.rand(N - 1) * np.pi
+    # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
+    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
+    last_angle = (
+        m * np.pi - np.sum(angles)
+    ) % np.pi  # @Jan: I think here we can actually just do -np.sum(angles) % np.pi
+    angles = np.append(angles, last_angle)
+    return m, angles
+
+
 # create quantum state that is epsilon far from ghz state as per paper
 def eps_error(rho, N, noise_choice=0, index=0, error=0):
     if noise_choice == 0:
@@ -154,133 +165,3 @@ class VerifyProtocol(Protocol):
                 base=base,
             )
             self.world.event_queue.add_event(measure_event)
-
-
-def angles(N):
-    angles = np.random.rand(N - 1) * np.pi
-    # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
-    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
-    last_angle = (
-        m * np.pi - np.sum(angles)
-    ) % np.pi  # @Jan: I think here we can actually just do -np.sum(angles) % np.pi
-    angles = np.append(angles, last_angle)
-    return m, angles
-
-
-def verify(world, rho, verifier=None):
-    # not using verifier now, but inserted for later
-    N = int(np.log2(rho.shape[0]))
-
-    protocol = VerifyProtocol()
-    angles_list = angles(N)
-
-    results = []
-    for i in range(N):
-        protocol.check({"message": "send"})
-        state_vec_1 = 1 / np.sqrt(2) * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1)
-        state_vec_2 = 1 / np.sqrt(2) * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1)
-
-        proj = []
-        # compute projectors
-        if i < N - 1:
-            proj.append(
-                mat.tensor(state_vec_1 @ mat.H(state_vec_1), mat.I(2 ** (N - 1 - i)))
-            )
-            proj.append(
-                mat.tensor(state_vec_2 @ mat.H(state_vec_2), mat.I(2 ** (N - 1 - i)))
-            )
-        else:
-            proj.append(state_vec_1 @ mat.H(state_vec_1))
-            proj.append(state_vec_2 @ mat.H(state_vec_2))
-
-        # calculate probabilites
-        probs = []
-        # print(rho.shape)
-        # print(i)
-        p1 = np.trace(proj[0] @ rho)
-        p2 = np.trace(proj[1] @ rho)
-        if np.isclose(np.real(p1), 0):
-            p1 = 0 + np.imag(p1) * 1j
-        if np.isclose(np.real(p2), 0):
-
-            p2 = 0 + np.imag(p2) * 1j
-        p1 = np.real_if_close(p1)
-        p2 = np.real_if_close(p2)
-        assert np.imag(p1) == 0, p1
-        assert np.imag(p2) == 0, p2
-        assert np.real(p1) >= 0, p1
-        assert np.real(p2) >= 0, p2
-        probs.append(np.real(p1))
-        probs.append(np.real(p2))
-
-        # sanity check: probs[0] + probs[1] should be 1
-        choice = np.random.choice(2, 1, p=[probs[0], probs[1]])[0]
-        results.append(choice)
-
-        # some sanity checks for rho_new
-        if i != N - 1:
-            # collapse of state
-            rho_new = proj[choice] @ rho @ proj[choice] / probs[choice]
-            rho = mat.ptrace(rho_new, [0])
-
-    ### I think it is safer to make sure that both sides are integers so maybe:
-    expected_parity = int(round(np.sum(angles_list) / np.pi)) % 2
-    measured_parity = int(np.sum(results) % 2)
-    return expected_parity == measured_parity
-
-
-if __name__ == "__main__":
-    N = 4
-    params = {
-        "N": 4,
-        "P_LINK": 0.80,
-        "T_DP": 100e-3,
-        "LAMBDA_BSM": 0.99,
-        "COMMUNICATION_SPEED": 2e8,
-    }
-
-    # create ghz state
-    rho = mat.ghz(N) @ mat.H(mat.ghz(N))
-    # create state that is epsilon far from ghz
-
-    min_eps = 0.1
-
-    t_eps = None
-
-    for noise_choice in range(5):
-        # exponent for error parameter
-        exp = -1
-        # better name? variable to get a more fine tuned exponent
-        step = 0
-        while t_eps is None or not np.isclose(t_eps, min_eps):
-            rho2, noise_string = eps_error(
-                rho, N, noise_choice, index=0, error=10**exp
-            )
-            t_eps = np.sqrt(1 - (ghz_fidelity(rho2, N)))
-
-            if t_eps > min_eps:
-                exp -= 1 * (10**step)
-            if t_eps < min_eps:
-                exp += 1 * (10**step)
-                step -= 1
-                exp -= 1 * (10**step)
-
-        # make iterN dependent on the probability
-        p = (t_eps**2) / 4
-        iterN = int(15 / p)
-        print("-----------------------------------")
-        print("the noise being used is", noise_string)
-        print("the state being used is", t_eps, "far from the ghz state")
-        print(
-            "theoretical minimum probability of state failing verification protocol:", p
-        )
-
-        hits = 0
-        print("using", iterN, "iterations in simulation")
-        for i in range(iterN):
-            hits += verify(rho2)
-        print(
-            "simulation probability of the state failing verification:",
-            1 - hits / iterN,
-        )
-        t_eps = None
