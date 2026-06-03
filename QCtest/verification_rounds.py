@@ -12,29 +12,6 @@ import requsim.tools.noise_channels as nc
 from requsim.tools.protocol import Protocol
 from requsim.events import MeasurementEvent
 
-# function for ghz fidelity
-def ghz_fidelity(rho: np.ndarray, num_parties):
-    z0s = [mat.z0] * num_parties
-    z0s = mat.tensor(*z0s)
-    z1s = [mat.z1] * num_parties
-    z1s = mat.tensor(*z1s)
-    ghz_psi = 1 / np.sqrt(2) * (z0s + z1s)
-
-    fidelity = np.real_if_close(np.dot(np.dot(mat.H(ghz_psi), rho), ghz_psi)[0, 0])
-
-    return fidelity
-
-
-def angles(N):
-    angles = np.random.rand(N - 1) * np.pi
-    # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
-    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
-    last_angle = (
-        m * np.pi - np.sum(angles)
-    ) % np.pi  # @Jan: I think here we can actually just do -np.sum(angles) % np.pi
-    angles = np.append(angles, last_angle)
-    return m, angles
-
 
 # create quantum state that is epsilon far from ghz state as per paper
 def eps_error(rho, N, noise_choice=0, index=0, error=0):

@@ -23,11 +23,8 @@ def angles(N):
 
     angles = np.random.rand(N - 1) * np.pi
     # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
-    m = np.random.randint(0, 2)  # or any integer really, but parity is what matters
-    last_angle = (
-        m * np.pi - np.sum(angles)
-    ) % np.pi  # @Jan: I think here we can actually just do -np.sum(angles) % np.pi
-    angles = np.append(angles, last_angle)
+    angles = np.append(angles, (-1 * np.sum(angles)) % np.pi)
+    m = int(np.round(np.sum(angles) / np.pi)) % 2
     return m, angles
 
 

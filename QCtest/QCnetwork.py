@@ -14,7 +14,8 @@ import requsim.libs.matrix as mat
 import numpy as np
 from requsim.events import MultiSourceEvent, MeasurementEvent
 from requsim.libs.aux_functions import distance
-from verification_rounds import angles, VerifyProtocol
+from verification_rounds import VerifyProtocol
+import QC_aux_functions as qaf
 
 C = 2e8  # speed of light
 
@@ -59,7 +60,7 @@ for i in range(N):
     )
     stations += [station]
 
-# creating source
+# creating sourcea
 source = MultiSchedulingSource(
     world=world,
     position=np.array([0, 0]),
@@ -80,7 +81,7 @@ current_message = {"event": "send"}
 current_message = protocol.check(current_message)
 current_message = world.event_queue.resolve_next_event()
 
-parity, angles_list = angles(N)
+parity, angles_list = qaf.angles(N)
 order = np.random.permutation(N)
 meas_results = []
 for i in range(N):
