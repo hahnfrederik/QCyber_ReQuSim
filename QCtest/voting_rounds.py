@@ -19,6 +19,7 @@ from requsim.quantum_objects import Station, SourceMult, MultiQubit
 from requsim.events import MultiSourceEvent, MeasurementEvent
 from requsim.libs.aux_functions import distance
 import requsim.libs.matrix as mat
+from requsim.tools.protocol import protocol
 
 speedMeas = 1e-9  # speed of one quantum measurement
 C = 2e8  # speed of light
