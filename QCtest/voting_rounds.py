@@ -69,7 +69,7 @@ class Voting:
         p = self.current_subround[0]
         k = self.current_subround[1]
         n = self.currnet_subround[2]
-        if n < self.N:
+        if n < self.N: # In the paper this is the other way around (k->p->n) instead of (n->k->p)
             self.current_subround = (p, k, n + 1)
         else:
             if k < np.ceil(np.log2(self.C)):
