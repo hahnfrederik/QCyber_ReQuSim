@@ -5,7 +5,7 @@ from multiprocessing import Process, Queue, JoinableQueue
 
 N = 5
 S = 5
-X = [0, 0, 1, 0, 0]
+X = [1, 0, 1, 0, 0]
 
 network = Network(N)
 actors = []
@@ -36,3 +36,7 @@ while not (output_queue.empty()):
     output = output_queue.get()
     ans += [output]
 print(ans)
+
+# cleanup
+for ap in actor_process:
+    ap.close()
