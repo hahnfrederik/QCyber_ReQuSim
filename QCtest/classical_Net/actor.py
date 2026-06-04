@@ -43,7 +43,7 @@ class Actor:
             prob = 1 - (1 / (N - R))
             x_i = np.random.choice(2, 1, p=[prob, 1 - prob])[0]
 
-    def logic_or(self, N, x_i):
+    def logic_or(self, N, x_i, ordering):
         # implementation of the logical or classical subroutine from the POV of an actor
 
         if x_i == 0:
@@ -58,15 +58,32 @@ class Actor:
             r_i = np.append(r_i, 1)
 
         for j, conn in enumerate(self.connections):
-            conn.send(r_i)
+            if conn is not None:
+                conn.send(r_i[j])
         r_i_recv = []
         for conn in self.connections:
-            r_i_recv += [conn.recv()]
+            if conn is not None:
+                r_i_recv += [conn.recv()]
         z_j = np.sum(r_i_recv) % 2
-        for conn in self.connections:
-            conn.send(z_j)
-        z_s = []
-        for conn in self.connections:
-            z_s += [conn.recv()]
+        # here we have to follow the fixed ordering
+        # actor knows through ordering, who#s message he has to wait for
+        # and who will broadcast the result at the end
+        if ordering[0] == self.actor_numb:
+            # here we need no check for none, because the list is created in such a way that self.connection[self.actor_numb] is None
+            self.connections[ordering[1]].send(z_j)
+            y_i = self.connections[ordering[-1]].recv()
+        elif ordering[-1] == self.actor_numb:  # last in ordering
+            z_in = self.connections[ordering[-2]].recv()
+            y_i = (z_in + z_j) % 2
+            for conn in self.connections:
+                if conn is not None:
+                    conn.send(y_i)
+        else:  # not first or last, so find position
+            pos = np.argwhere(ordering == self.actor_numb)[0][0]
+            # wait to receive prior z
+            z_in = self.connections[ordering[pos - 1]].recv()
+            z_out = (z_in + z_j) % 2
+            self.connections[ordering[pos + 1]].send(z_out)
+            y_i = self.connections[ordering[-1]].recv()
 
-        self.output_queue.put((np.sum(z_s) + z_j) % 2)
+        self.output_queue.put(y_i)

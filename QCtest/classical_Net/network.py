@@ -17,6 +17,7 @@ class Network:
         self.connections = [[] for i in range(N)]
 
         for i in range(N):
+            self.connections[i] += [None]
             for j in range(i + 1, N):
                 conn1, conn2 = Pipe()
                 self.connections[i] += [conn1]
