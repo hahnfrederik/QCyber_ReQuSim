@@ -30,5 +30,6 @@ class Network:
     def _close(self):
         for conns in self.connections:
             for conn in conns:
-                conn.close()
+                if conn is not None:
+                    conn.close()
         return

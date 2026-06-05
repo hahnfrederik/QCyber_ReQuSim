@@ -2,6 +2,7 @@ from requsim.quantum_objects import Station
 import numpy as np
 from multiprocessing.connection import Connection
 from multiprocessing import Queue
+from datetime import datetime
 
 
 class Actor:
@@ -33,36 +34,56 @@ class Actor:
         self.turn = False
         self.output_queue = output_queue
         self.connections = connections
+        self.rng = np.random.default_rng(
+            seed=int(datetime.now().timestamp()) + actor_numb
+        )  # some unique random number seed for each actor
 
     def get_unique_id(self, S, N, orderings):
         # implementation of the unique id classical subroutine from the POV of an actor
         omeg = 0
-        cont = True
-        np.random.seed()
-        while cont:
-            for R in range(1, N):
-                if omeg == 1:
-                    x_i = 0
-                else:
-                    prob = 1 - (1 / (N - R))
-                    x_i = np.random.choice(2, 1, p=[prob, 1 - prob])[0]
-                    y_i = self.logic_or(N=N, x_i=x_i, orderings=ordering, S=S)
-                if y_i == 1:
-                    return
+        for R in range(1, N):
+            cont = True
+            while cont:
+                y_i = 0
+                while y_i == 0:
+                    if omeg != 0:
+                        x_i = 0
+                    else:
+                        prob = 1 - (1 / (N + 1 - R))
+                        x_i = self.rng.choice(2, 1, p=[prob, 1 - prob])[0]
+                    y_i, collision = self.logic_or(
+                        N=N, x_i=x_i, orderings=orderings, S=S
+                    )
+                assert y_i == 1
+                c_i = 0
+                if x_i == 1 and collision:
+                    c_i = 1
+                c_log, second_collision = self.logic_or(
+                    N=N, x_i=c_i, orderings=orderings, S=S
+                )
+                if c_log == 0:
+                    if x_i == 1:
+                        omeg = R
+                    cont = False
+                # print(self.actor_numb, "R", R, "x", x_i, "c", c_i, "tru_coll", collision,"c_log", c_log ,"omeg", omeg)
+        if omeg == 0:
+            self.order = N
+        else:
+            self.order = omeg
+        self.output_queue.put((self.actor_numb, omeg, self.order))
 
-    def logic_or(self, N, x_i, orderings, S=1):
+    def logic_or(self, N, x_i, orderings, S):
         # implementation of the logical or classical subroutine from the POV of an actor
         y_i = 0
         collision = False
-        np.random.seed()
         for ordering in orderings:
             for l in range(S):
                 if x_i == 0:
                     p_i = 0
                 else:
-                    p_i = np.random.choice(2, 1)[0]
+                    p_i = self.rng.choice(2, 1)[0]
 
-                r_i = np.random.choice(2, N - 1)
+                r_i = self.rng.choice(2, N - 1)
                 if np.sum(r_i) % 2 == p_i:
                     r_i = np.append(r_i, 0)
                 else:
@@ -101,10 +122,10 @@ class Actor:
                     z_final = self.connections[ordering[-1]].recv()
                     y_i += z_final
                 # check for collision
-                if x_i == 1 and p_i == 1 and z_final == 1:
+                if x_i == 1 and p_i == 0 and z_final == 1:
                     collision = True
                 if p_i == 1 and z_final == 0:
                     collision = True
         # just a check
-        self.output_queue.put((self.actor_numb, y_i, collision))
+        # self.output_queue.put((self.actor_numb, y_i, collision))
         return y_i > 0, collision
