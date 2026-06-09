@@ -3,6 +3,7 @@ import numpy as np
 from multiprocessing.connection import Connection
 from multiprocessing import Queue
 from datetime import datetime
+from QC_aux_functions import angles
 
 
 class Actor:
@@ -37,6 +38,70 @@ class Actor:
         self.rng = np.random.default_rng(
             seed=int(datetime.now().timestamp()) + actor_numb
         )  # some unique random number seed for each actor
+        self.verifier = None
+
+    def vote_init():
+        self.rate = 0
+        self.test_rate = 0
+
+    def verify_or_vote(self, n, M, N, orderings, S):
+        # receive a qubit from GHZ
+        if n == self.order:
+            # actor is agent
+            r = self.rng.choice(2, 1, p=[1 - (2 ** (-1 * M)), 2 ** (-1 * M)])
+            r_total, collision_r = self.logical_or(N=N, x_i=r, orderings=orderings, S=S)
+            assert r == r_total
+        else:
+            r, collision_r = self.logical_or(N=N, x_i=0, orderings=orderings, S=S)
+        assert collision_r is False
+        if r == 0:
+            # verification round
+            return "verify"
+        if r == 1:
+            return "vote"
+
+    def choose_verifier(self, n, N, orderings, S):
+        K = np.int64(np.ceil(np.log2(N)))
+        if n == self.actor_numb:
+            # current agent
+            ver = self.rng.choice(N, 1)[0] + 1
+            ver = np.binary_repr(ver, K)
+        else:
+            ver = "0" * K
+        ver_out = []
+        for i in range(K):
+            v_i, collision_v = self.logical_or(
+                N=N, x_i=int(ver[i]), orderings=orderings, S=S
+            )
+            assert collision_v is False
+            ver_out += [v_i]
+        self.verifier = int("".join(map(str, ver_out)), 2)
+
+    def verify(self, N, parent_conn):
+        assert self.verifier is not None
+        if self.verifier == self.actor_numb:
+            self.test_rate += 1
+            # create random angles
+            m, angles_list = angles(N, self.rng)
+            for i, conn in enumerate(self.connections):
+                if conn is not None:
+                    conn.send(angles_list[i])
+            angle = angles_list[self.actor_numb]
+        else:
+            angle = self.connections[self.verifier].recv()
+            # measure with the angle
+        parent_conn.send(angle)
+        meas_res = [parent_conn.recv()]
+        # publicly announce, but for simulation it is sent to agent
+        if self.verifier == self.actor_numb:
+            for conn in self.connections:
+                if conn is not None:
+                    meas_res += conn.recv()
+            if np.sum(meas_res) % 2 == m % 2:
+                self.rate += 1
+        else:
+            self.connections[self.verifier].put(meas_result[0])
+        self.verifier = None
 
     def get_unique_id(self, S, N, orderings):
         # implementation of the unique id classical subroutine from the POV of an actor
@@ -127,5 +192,5 @@ class Actor:
                 if p_i == 1 and z_final == 0:
                     collision = True
         # just a check
-        # self.output_queue.put((self.actor_numb, y_i, collision))
+        self.output_queue.put((self.actor_numb, y_i, collision))
         return y_i > 0, collision

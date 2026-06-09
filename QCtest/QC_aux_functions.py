@@ -1,13 +1,14 @@
 import numpy as np
 
 
-def angles(N):
+def angles(N, rng=None):
     """Return a list of angles, such that the sum of the angles is a multiple of pi
 
     Parameters
     ----------
     N : integer
         the amount angles we want in the list
+    rng: random number generator, if applicable
 
     Returns
     -------
@@ -17,11 +18,9 @@ def angles(N):
     list: np.ndarrays
         the angles [0, pi] that sum up to a whole multiple of pi
     """
-
-    # Kinda weird right now, since m is irrelevant for the last angle calculation.
-    # But if it is irrelevnat, than how can it be the parity of the multiple of the sum of the angles?
-
-    angles = np.random.rand(N - 1) * np.pi
+    if rng is None:
+        rng = np.random.default_rng()
+    angles = rng.choice(N - 1) * np.pi
     # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
     angles = np.append(angles, (-1 * np.sum(angles)) % np.pi)
     m = int(np.round(np.sum(angles) / np.pi)) % 2

@@ -3,9 +3,9 @@ from classical_Net.actor import Actor
 from classical_Net.network import Network
 from multiprocessing import Process, Queue, JoinableQueue
 
-N = 10
+N = 5
 S = 5
-X = [1, 1, 1]
+X = [1, 1, 1, 0, 0]
 
 network = Network(N)
 actors = []
@@ -25,8 +25,8 @@ for i in range(N):
     orderings = []
     orderings += [np.random.permutation(N)]
 for j, actor in enumerate(actors):
-    curr_a_proc = Process(target=actor.get_unique_id, args=(S, N, orderings))
-    # curr_a_proc = Process(target=actor.logic_or, args=(N,X[j], orderings, S))
+    # curr_a_proc = Process(target=actor.get_unique_id, args=(S, N, orderings))
+    curr_a_proc = Process(target=actor.logic_or, args=(N, X[j], orderings, S))
     curr_a_proc.daemon = True
     curr_a_proc.start()
     actor_process += [curr_a_proc]

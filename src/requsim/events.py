@@ -886,17 +886,17 @@ class MeasurementEvent(Event):
     """
 
     def __init__(
-        self, time, multiqubit, station, base=[mat.z0, mat.z1], callback_functions=None
+        self, time, qubits, station, base=[mat.z0, mat.z1], callback_functions=None
     ):
-        self.multiqubit = multiqubit
+        self.qubits = qubits
         self.station = station
         self.base = base
         super(MeasurementEvent, self).__init__(
             time,
-            required_objects=[self.multiqubit]
-            + [qubit for qubit in self.multiqubit.qubits],
+            required_objects=[qubit for qubit in self.qubits],
             callback_functions=callback_functions,
         )
+        self.multiqubit = qubits[0].higher_order_object
 
     def __repr__(self):
         return (
