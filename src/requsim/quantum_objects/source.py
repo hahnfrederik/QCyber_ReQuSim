@@ -72,7 +72,7 @@ class Source(WorldObject):
         )
 
 
-class SourceMult(Source):
+class MultiSource(Source):
     """A source of multipartite entangled pairs.
 
     Parameters
@@ -205,7 +205,7 @@ class SchedulingSource(Source):
         return source_event
 
 
-class MultiSchedulingSource(SourceMult):
+class MultiSchedulingSource(MultiSource):
     """A Source that schedules its next event according to a distribution.
 
     Parameters

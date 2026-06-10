@@ -49,7 +49,7 @@ class MultiQubit(WorldObject):
 
     def __str__(self):
         return (
-            f"{self.label} with qubits"
+            f"{self.label} with qubits "
             + ", ".join([x.label for x in self.qubits])
             + " between stations "
             + ", ".join(

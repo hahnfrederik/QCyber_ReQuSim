@@ -865,9 +865,8 @@ class MeasurementEvent(Event):
 
     time: scalar
         Time at which the event will be resolved.
-    denisty_matrix:
-        the density matrix of the quantum system the station is part of.
-        Prefably should be the samllest density state the station is part of which is not a product state for efficency
+    qubit: Qubit
+        The qubit which is being measured
     station: Station
         the station where the measurement is performed.
     base: list
@@ -881,22 +880,26 @@ class MeasurementEvent(Event):
     Attributes
     ----------
 
+    Current Assumptions
+    -------------------
 
+    measurement is only for one qubit at a time (maybe station makes measurement on multiple qubits)
 
     """
 
-    def __init__(
-        self, time, qubits, station, base=[mat.z0, mat.z1], callback_functions=None
-    ):
-        self.qubits = qubits
+    def __init__(self, time, station, base=None, callback_functions=None):
+        self.qubit = station.qubits[0]
         self.station = station
-        self.base = base
         super(MeasurementEvent, self).__init__(
             time,
-            required_objects=[qubit for qubit in self.qubits],
+            required_objects=[self.qubit],
             callback_functions=callback_functions,
         )
-        self.multiqubit = qubits[0].higher_order_object
+
+        if base is None:
+            self.base = [mat.z0, mat.z1]
+        else:
+            self.base = base
 
     def __repr__(self):
         return (
@@ -908,7 +911,7 @@ class MeasurementEvent(Event):
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__} at time={self.time} measureing state , {self.multiqubit.label} at station {self.station.label}"
+            f"{self.__class__.__name__} at time={self.time} measuring state , {self.station.label} at station {self.station.label}"
             + "."
         )
 
@@ -922,22 +925,34 @@ class MeasurementEvent(Event):
         dict
             The return_dict of this event is updated with this.
         """
+
+        multiqubit = self.qubit.higher_order_object
+
+        # should not happen typically
+        # one could mearue a qubit, but without higher order object, there is no wy to get to the density state
+        # could be pair is higher order instance, but that shouldnt happen in our case. Furthermore, the idea is generalize pair into MultiQubit
+        assert multiqubit is not None
+
+        # make sure multiqubit is updated
+        multiqubit.update_time()
+
         measuring_qubit = []
         measuring_index = []
         rest_qubits = []
         rest_index = []
 
-        for idx, qubit in enumerate(self.multiqubit.qubits):
+        for idx, qubit in enumerate(multiqubit._qubits):
             if qubit in self.station.qubits:
                 measuring_qubit += [qubit]
                 measuring_index += [idx]
             else:
                 rest_qubits += [qubit]
                 rest_index += [idx]
-        assert len(measuring_qubit) == 1
-        self.multiqubit.update_time()
 
-        rho = self.multiqubit.state
+        # this assertion holds only for the case that we measure one qubit at a time
+        assert len(measuring_qubit) == 1
+
+        rho = multiqubit.state
         rho_reordered = mat.reorder(
             rho=rho, sys=[measuring_index[0]] + [ind for ind in rest_index]
         )
@@ -996,17 +1011,17 @@ class MeasurementEvent(Event):
         assert (rho_new.shape[0] == 0 and N - 1 == 0) or int(
             np.log2(rho_new.shape[0])
         ) == N - 1
-        new_multi = quantum_objects.MultiQubit(
-            world=self.multiqubit.world, qubits=rest_qubits, initial_state=rho_new
-        )
+        if N > 1:
+            new_multi = quantum_objects.MultiQubit(
+                world=self.station.world, qubits=rest_qubits, initial_state=rho_new
+            )
 
         # cleanup
         for qubit in measuring_qubit:
             qubit.destroy()
-        self.multiqubit.destroy()
+        multiqubit.destroy()
         return {
             "measurement_outcome": choice,
-            "output_state": new_multi,
             "measurement_station": self.station,
         }
 

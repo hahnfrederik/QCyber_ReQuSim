@@ -10,8 +10,9 @@ import requsim.libs.matrix as mat
 import requsim.libs.aux_functions as af
 import requsim.tools.noise_channels as nc
 from requsim.tools.protocol import Protocol
-from requsim.events import MeasurementEvent
-
+from requsim.events import MeasurementEvent, MultiSourceEvent
+from requsim.quantum_objects import Station, MultiSource
+from requsim.world import World
 
 # create quantum state that is epsilon far from ghz state as per paper
 def eps_error(rho, N, noise_choice=0, index=0, error=0):
@@ -142,3 +143,30 @@ class VerifyProtocol(Protocol):
                 base=base,
             )
             self.world.event_queue.add_event(measure_event)
+
+
+if __name__ == "__main__":
+    N = 3
+    world = World()
+    init_state = mat.ghz(N) @ mat.H(mat.ghz(N))
+    stations = []
+    for i in range(N):
+        stations += [Station(world=world, position=[i, 0])]
+    ghz_source = MultiSource(world=world, position=[0, 0], target_stations=stations)
+    ghz_event = MultiSourceEvent(
+        time=world.event_queue.current_time, source=ghz_source, initial_state=init_state
+    )
+    world.event_queue.add_event(ghz_event)
+    world.event_queue.resolve_next_event()
+    for j in range(N):
+        meas_event = MeasurementEvent(
+            time=world.event_queue.current_time,
+            station=stations[j],
+            base=[mat.z0, mat.z1],
+        )
+        world.event_queue.add_event(meas_event)
+    world.print_status()
+    while world.event_queue.next_event is not None:
+        res = world.event_queue.resolve_next_event()
+        print(res["measurement_outcome"])
+        world.print_status()
