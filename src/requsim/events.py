@@ -887,7 +887,7 @@ class MeasurementEvent(Event):
 
     """
 
-    def __init__(self, time, station, base=None, callback_functions=None):
+    def __init__(self, time, station, rng=None, base=None, callback_functions=None):
         self.qubit = station.qubits[0]
         self.station = station
         super(MeasurementEvent, self).__init__(
@@ -900,11 +900,15 @@ class MeasurementEvent(Event):
             self.base = [mat.z0, mat.z1]
         else:
             self.base = base
+        if rng is None:
+            self.rng = np.random.default_rng()
+        else:
+            self.rng = rng
 
     def __repr__(self):
         return (
             self.__class__.__name__
-            + f"(time={self.time}, multiqubit={self.multiqubit},station={self.station}, base = {self.base[0],self.base[1]},"
+            + f"(time={self.time},station={self.station}, base = {self.base[0],self.base[1]},"
             + f"callback_functions={self._callback_functions}"
             + ")"
         )
@@ -998,7 +1002,7 @@ class MeasurementEvent(Event):
         probs.append(np.real(p1))
 
         # random choice of outcome
-        choice = np.random.choice(2, 1, p=probs)[0]
+        choice = self.rng.choice(2, 1, p=probs)[0]
 
         if N > 1:
             rho_new = proj[choice] @ rho_reordered @ proj[choice] / probs[choice]

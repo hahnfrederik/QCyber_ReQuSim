@@ -134,15 +134,17 @@ class VerifyProtocol(Protocol):
         if message["event"] == "measure":
             current_N = len(self.world.world_objects["Qubit"])
             multiqubit = self._get_multiqubit(current_N)
-            base = message["base"]
-            actor = message["actor"]
-            measure_event = MeasurementEvent(
-                time=self.world.event_queue.current_time,
-                multiqubit=multiqubit,
-                station=actor,
-                base=base,
-            )
-            self.world.event_queue.add_event(measure_event)
+            bases = message["bases"]
+
+            # make sure actor and basis order is the same respectivley
+            for i, base in enumerate(bases):
+                measure_event = MeasurementEvent(
+                    time=self.world.event_queue.current_time,
+                    station=self.actors[i],
+                    base=base,
+                    seed=i,
+                )
+                self.world.event_queue.add_event(measure_event)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ def angles(N, rng=None):
     """
     if rng is None:
         rng = np.random.default_rng()
-    angles = rng.choice(N - 1) * np.pi
+    angles = rng.random(size=N - 1) * np.pi
     # pick parity m uniformly from {0, 1} and then make sure the sum is m*pi
     angles = np.append(angles, (-1 * np.sum(angles)) % np.pi)
     m = int(np.round(np.sum(angles) / np.pi)) % 2

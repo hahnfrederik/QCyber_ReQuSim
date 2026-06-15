@@ -1,128 +1,119 @@
 """
-    Voting round simulation
-
-    Goal: Express anonymously the preference of the voting
-        agent a.
-    Inputs: The subround counter (p,k,n), that identifies the
-        voting agent a; the k-th bit of the input s_a in [C]
-        represented in binary units, s_q^k in {0,1}
-    Outputs:
-        The result of a subround, which is a N
-        dimensional vector that will be part of the bulletin board
-        B, more precisely the n-th row of the bulletin of the (p,k)
-        subround.
+The Voting protocol class which takes over all the interactions with a Quantum Network via simulation with requsim
 """
 
-import numpy as np
-from requsim.world import World
-from requsim.quantum_objects import Station, SourceMult, MultiQubit
-from requsim.events import MultiSourceEvent, MeasurementEvent
-from requsim.libs.aux_functions import distance
-import requsim.libs.matrix as mat
-from requsim.tools.protocol import protocol
-
-speedMeas = 1e-9  # speed of one quantum measurement
-C = 2e8  # speed of light
+from requsim.tools.protocol import Protocol
+from requsim.libs import matrix as mat
+from requsim.events import MeasurementEvent
 
 
-class Voting:
-    """
-    Voting class, one class per vote.
-    Attributes
-        tally : np.darray, Tally of the Vote
-        P : int, Privacy amplification round P (maximum and current) ((current could be read from the current state of the tally))
-        C : int, Number of Candidates C
-        N : int, Number of Voters N
-        world : World, requsim world within which we are simulating
-        stations: list[Station], the stations representing the
-        source: SourceMult, the source of the ghz states for the protocol
-    """
+class VotingProtocol(Protocol):
+    def __init__(self):
+        self.time_list = []
+        self.state_list = []
+        super(VotingProtocol, self).__init__(world=None)
 
-    def __init__(self, P, C, N, world, stations, source):
-        self.tally = [[[] for j in range(np.ceil(np.log2(C)))] for i in range(P)]
-        self.P = P
-        self.N = N
-        self.C = C
-        self.world = world
-        self.actors = stations
-        self.source = source
-        self.delay = np.max([distance(source, actor) / C for actor in self.actors])
-        self.current_subround = (0, 0, 0)  # (p,k,n)
+    @property
+    def data():
+        return pd.Dataframe({"time": self.time_list, "state": self.state_list})
 
-    def unique_index():
-        # here, theoretically, we could do the unique index classical subroutine
-        # for now we just return standard index list
-        return np.arange(self.N)
+    def setup(self, world=None, communication_speed=None, rng=None):
+        """
+        Should be run after the relevant WorldObjects have been added to the world.
 
-    def send_ghz():
-        # send the ghz state to all participants
-        sending_ghz = MultiSourceEvent(
-            time=self.world.event_queue.current_time + self.delay,
-            source=self.source,
-            initial_state=mat.ghz(self.N) @ mat.H(mat.ghz(self.N)),
-        )
-        world.event_queue.add_event(sending_ghz)
+        Parameters
+        ----------
+        world: World
+            The World object representing the scenario for which this Protocol will be used.
+        communication_speed: scalar
+            The communication speed used for calculatinf the delays when sending qubits or classical messages between stations.
 
-        result = world.event_queue.resolve_next_event()
-        return result
+        Returns
+        -------
+        None
 
-    def increase_subrounds():
-        p = self.current_subround[0]
-        k = self.current_subround[1]
-        n = self.currnet_subround[2]
-        # In the paper this is the other way around (k->p->n) instead of (n->k->p)
-        if n < self.N:
-            self.current_subround = (p, k, n + 1)
+        """
+
+        if world is None:
+            if self.world is None:
+                raise ValueError(
+                    "world is not specified. "
+                    + "Must be provided either as part of the initialization (deprecated) or "
+                    "the setup method (recommended)."
+                )
+            else:
+                pass
         else:
-            if k < np.ceil(np.log2(self.C)):
-                self.current_subround = (p, k + 1, 0)
-            else:
-                if p < self.P:
-                    self.current_subround = (p + 1, 0, 0)
-                else:
-                    # was last round
-                    return -1
-        return 0
+            self.world = world
 
-    def measure_all_ghz(result):
-        # each agent measures
-        meas_result = []
-        for actor in self.actors:
-            event_measure = MeasurementEvent(
-                time=world.event_queue.current_time + speedMeas,
-                multiqubit=result["output_state"],
-                station=actor,
+        if communication_speed is None:
+            if self.communication_speed is None:
+                raise ValueError(
+                    "communication_speed is not specified. "
+                    + "Must be provided either as part of the initialization (deprecated) or "
+                    + "the setup method (recommended)."
+                )
+            else:
+                pass
+        else:
+            self.communication_speed = communication_speed
+
+        self.rng = rng
+
+        actors = self.world.world_objects["Station"]
+
+        assert len(actors) >= 2
+
+        self.actors = actors
+
+        sources = self.world.world_objects["Source"]
+
+        assert len(sources) == 1
+
+        # do we even want this check?
+        assert (sources[0].position == [0, 0]).all
+
+        self.source = sources[0]
+        # more check
+
+    def _get_multiqubit(self, N):
+        try:
+            multiqubit = self.world.world_objects[f"{N}-qubit Multiqubit"]
+        except KeyError:
+            multiqubit = None
+            return None
+        return multiqubit[0]
+
+    def _get_multiqubit_scheduled(self):
+        return list(
+            filter(
+                lambda event: (isinstance(event, MultiSourceEvent)),
+                self.world.event_queue.queue,
             )
-            world.event_queue.add_event(event_measure)
-            result = world.event_queue.resolve_next_event()
-            meas_result += [result["measurment_outcome"]]
-        return meas_result
+        )
 
-    def vote_subround(station_a, meas_results):
-        # station_a is the main station in this subround
-        result = self.send_ghz()
-        outcomes = self.measure_ghz(result)
-        ntallyrow = []
+    def check(self, message=None):
+        """
+        checks status of world and does events and calculations based upon that
+        """
 
-        # assuming here that meas_result has same indexing as self.stations
-        for i, actor in enumerate(self.actors):
-            if actor == station_a:
-                # station a checks if it is last round of privacy amplification
-                if self.current_subround < self.P - 1:
-                    # generate_random_bit
-                    rand = np.random.randint(0, 2)
-                else:
-                    # the kth bit of the candidate agent a wants to vote for
-                    # here we also do random for now
-                    # in future maybe implement some way of input
-                    rand = np.random.randint(0, 2)
-            else:
-                rand = np.random.randint(0, 2)
-            ntallyrow += [rand + meas_result[i]]
-
-        # every agent broadcasts
-
-        tally[self.current_subround[0]][self.current_subround[1]] += [ntallyrow]
-        self.increase_subrounds()
-
-        return ntallyrow
+        # 2 different scanrios
+        # send GHZ
+        if message["event"] == "send":
+            # multiqubit = self._get_multiqubit()
+            # needs argument of size because of the label
+            # maybe better check or change label?
+            self.source.schedule_event()
+        # measure GHZ (in X basis)
+        if message["event"] == "measure":
+            current_N = len(self.world.world_objects["Qubit"])
+            multiqubit = self._get_multiqubit(current_N)
+            base = [mat.x0, mat.x1]
+            for i, actor in enumerate(self.actors):
+                measure_event = MeasurementEvent(
+                    time=self.world.event_queue.current_time,
+                    station=actor,
+                    base=base,
+                    rng=self.rng,
+                )
+                self.world.event_queue.add_event(measure_event)
