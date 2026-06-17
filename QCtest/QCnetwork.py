@@ -14,18 +14,20 @@ import requsim.libs.matrix as mat
 import numpy as np
 from requsim.events import MultiSourceEvent, MeasurementEvent
 from requsim.libs.aux_functions import distance
-from verification_rounds import VerifyProtocol
+from verification_rounds import VerificationProtocol
 from voting_rounds import VotingProtocol
 import QC_aux_functions as qaf
 
 C = 2e8  # speed of light
 
-N = 10  # number of users
+N = 5  # number of users
 C = 3
+M = 4
 P_LINK = 0.80
 T_DP = 100e-3
 LAMBDA_BSM = 0.99
 L_ATT = 22e3
+delta = 1 / 2
 rng = np.random.default_rng()
 votes = rng.choice(C, size=N)
 K = int(np.ceil(np.log2(C)))
@@ -74,37 +76,8 @@ source = MultiSchedulingSource(
     state_generation=state_generation,
 )
 
-# protocol = VerifyProtocol()
-
-# protocol.setup(world=world, communication_speed=C)
-
-# current_message = None
-
 ## here protocol begins
-## create angles
-# current_message = {"event": "send"}
-# current_message = protocol.check(current_message)
-# current_message = world.event_queue.resolve_next_event()
 
-# parity, angles_list = qaf.angles(N)
-# order = np.random.permutation(N)
-# meas_results = []
-# bases= []
-# for i in range(N):
-#    bases += [[
-#        1 / np.sqrt(2) * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1),
-#        1 / np.sqrt(2) * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1),
-#    ]]
-# current_message["event"] = "measure"
-# current_message["bases"] = bases
-# current_message["actor"] = stations[i]
-# protocol.check(current_message)
-# while world.event_queue.next_event is not None:
-#    current_message = world.event_queue.resolve_next_event()
-#    meas_results += [current_message["measurement_outcome"]]
-# print(np.sum(meas_results) % 2 == parity)
-
-# from here we do the voting subroutine
 tally = np.empty((K, P, N, N))
 # the input of the plurality votes of the users
 votes_bin = [np.binary_repr(vote, width=K) for vote in votes]
@@ -112,55 +85,97 @@ votes_bin = [np.binary_repr(vote, width=K) for vote in votes]
 # secret ordering
 uniq_ordering = rng.permutation(N)
 
-# TODO: check if veriifying or voting
-
-# TODO: if verifying then verify
-
-# If voting
-
-# TODO: calculate ratio and check
-
-# TODO: check current subround
-# for k in range(K):
-#    for p in range(P):
-#        for n in range(N):
-
+# creating protocols for voting and verifying
 vot_protocol = VotingProtocol()
-
 vot_protocol.setup(world=world, communication_speed=C, rng=rng)
 
+ver_protocol = VerificationProtocol()
+ver_protocol.setup(world=world, communication_speed=C, rng=rng)
+
+# output to check later
 print(votes)
 print(uniq_ordering)
+
 for k in range(K):
     rand_bits = np.zeros(N)
     for p in range(P):
         for n in range(N):
             agent = uniq_ordering[n]
-            vot_protocol.check(message={"event": "send"})
-            world.event_queue.resolve_next_event()
+            voted = False
+            ratios = np.zeros((2, N))
+            while not voted:
+                coin = rng.choice(2, 1, p=[1 - 2 ** (-M), 2 ** (-M)])
+                if coin == 0:
+                    # verify
+                    ver_agent = rng.choice(N, 1)[0]
+                    ratios[0][ver_agent] += 1
+                    current_message = {"event": "send"}
+                    current_message = ver_protocol.check(current_message)
+                    current_message = world.event_queue.resolve_next_event()
 
-            vot_protocol.check(message={"event": "measure"})
-            meas_res = []
-            while world.event_queue.next_event is not None:
-                res = world.event_queue.resolve_next_event()
-                meas_res += [res["measurement_outcome"]]
-            # print(meas_res)
-            for j in range(N):
-                if j == agent:
-                    if p == P - 1:
-                        # we also need to check that it all fits
-                        if rand_bits[j] == int(votes_bin[agent][k]):
-                            inp = (0 + meas_res[j]) % 2
-                        else:
-                            inp = (1 + meas_res[j]) % 2
-                    else:
-                        r_a = rng.choice(2)
-                        inp = (meas_res[j] + r_a) % 2
-                        rand_bits[j] += r_a
+                    parity, angles_list = qaf.angles(N)
+                    order = np.random.permutation(N)
+                    meas_results = []
+                    bases = []
+                    for i in range(N):
+                        bases += [
+                            [
+                                1
+                                / np.sqrt(2)
+                                * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1),
+                                1
+                                / np.sqrt(2)
+                                * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1),
+                            ]
+                        ]
+                    current_message["event"] = "measure"
+                    current_message["bases"] = bases
+                    current_message["actor"] = stations[i]
+                    ver_protocol.check(current_message)
+                    while world.event_queue.next_event is not None:
+                        current_message = world.event_queue.resolve_next_event()
+                        meas_results += [current_message["measurement_outcome"]]
+                    # print(np.sum(meas_results) % 2 == parity)
+                    if not np.sum(meas_results) % 2 == parity:
+                        ratios[1][ver_agent] += 1
                 else:
-                    inp = meas_res[j]
-                tally[k][p][n][j] = inp
-# print(tally)
+                    # vote
+                    if (ratios[1] / ratios[0] > delta).any():
+                        # abort
+                        raise RuntimeError(
+                            "in round ",
+                            k,
+                            p,
+                            n,
+                            " the state could not be verified",
+                            ratios,
+                        )
+                    voted = True
+                    vot_protocol.check(message={"event": "send"})
+                    world.event_queue.resolve_next_event()
+
+                    vot_protocol.check(message={"event": "measure"})
+                    meas_res = []
+                    while world.event_queue.next_event is not None:
+                        res = world.event_queue.resolve_next_event()
+                        meas_res += [res["measurement_outcome"]]
+                    # print(meas_res)
+                    for j in range(N):
+                        if j == agent:
+                            if p == P - 1:
+                                # we also need to check that it all fits
+                                if rand_bits[j] == int(votes_bin[agent][k]):
+                                    inp = (0 + meas_res[j]) % 2
+                                else:
+                                    inp = (1 + meas_res[j]) % 2
+                            else:
+                                r_a = rng.choice(2)
+                                inp = (meas_res[j] + r_a) % 2
+                                rand_bits[j] += r_a
+                        else:
+                            inp = meas_res[j]
+                        tally[k][p][n][j] = inp
+# TODO: verification of the tally for all actors
 outcome_votes_bin = np.sum(np.sum(tally, axis=3), axis=1) % 2
 outcome_votes_bin = np.transpose(outcome_votes_bin, (1, 0))
 print(outcome_votes_bin)

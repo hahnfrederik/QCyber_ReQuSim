@@ -38,17 +38,17 @@ def eps_error(rho, N, noise_choice=0, index=0, error=0):
     return rho, noise
 
 
-class VerifyProtocol(Protocol):
+class VerificationProtocol(Protocol):
     def __init__(self):
         self.time_list = []
         self.state_list = []
-        super(VerifyProtocol, self).__init__(world=None)
+        super(VerificationProtocol, self).__init__(world=None)
 
     @property
     def data():
         return pd.Dataframe({"time": self.time_list, "state": self.state_list})
 
-    def setup(self, world=None, communication_speed=None):
+    def setup(self, world=None, communication_speed=None, rng=None):
         """
         Should be run after the relevant WorldObjects have been added
         to the world.
@@ -103,6 +103,11 @@ class VerifyProtocol(Protocol):
         self.source = sources[0]
         # more checks?
 
+        if rng is None:
+            self.rng = np.random.default_rng()
+        else:
+            self.rng = rng
+
     def _get_multiqubit(self, N):
         try:
             multiqubit = self.world.world_objects[f"{N}-qubit MultiQubit"]
@@ -142,7 +147,7 @@ class VerifyProtocol(Protocol):
                     time=self.world.event_queue.current_time,
                     station=self.actors[i],
                     base=base,
-                    seed=i,
+                    rng=self.rng,
                 )
                 self.world.event_queue.add_event(measure_event)
 
