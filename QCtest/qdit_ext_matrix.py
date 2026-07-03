@@ -33,7 +33,7 @@ def Ha_d(d):
     for i in range(d):
         for k in range(d):
             Ha_mat[i][k] = omeg ** (i * k)
-    return np.asmatrix(Ha_mat / sqrt(d))
+    return Ha_mat / sqrt(d)
 
 
 # generalized Pauli Z matrix for qudits with optional argument x (as in Wildes book, which is equivalent to multiple applications of the operation)
