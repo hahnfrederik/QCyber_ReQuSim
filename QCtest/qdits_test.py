@@ -56,7 +56,6 @@ def test_transform_back_0():
 
 def test_transform_back_random():
     l = rng.integers(1, high=d)
-    # print('testing the tranformation of |', l,' hat>')
     xl = d_mat.x_d(d, l)
     transform = d_mat.Ha_d(d)
     Ha_dagg = mat.H(transform)
