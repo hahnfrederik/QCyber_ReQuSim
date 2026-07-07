@@ -4,6 +4,7 @@ import requsim.libs.matrix as mat
 import numpy as np
 from cmath import sqrt
 
+# some preliminaries, maybe make input of commandline
 rng = np.random.default_rng()
 d = rng.integers(2, high=7)
 abs_tol = 1e-07
@@ -26,7 +27,6 @@ def test_transform_0():
 # test the transformation of a random eigenstate of Z
 def test_transform_random():
     l = rng.integers(1, high=d)
-    # print('testing the transformation of |',l,'>')
     zl = d_mat.z_d(d, l)
     transform = d_mat.Ha_d(d)
     xl = transform @ zl
@@ -40,6 +40,7 @@ def test_transform_random():
     ), f"with dimension {d} and eigenstate {l}, there is a error in random transformation"
 
 
+# test the transformation of |0> hat
 def test_transform_back_0():
     x0 = d_mat.x_d(d, 0)
     transform = d_mat.Ha_d(d)
@@ -54,6 +55,7 @@ def test_transform_back_0():
     ), f"with dimension {d}, there is a error in back transformation"
 
 
+# test the transformation of a random X eigenstate
 def test_transform_back_random():
     l = rng.integers(1, high=d)
     xl = d_mat.x_d(d, l)
@@ -69,6 +71,7 @@ def test_transform_back_random():
     ), f"with dimension {d} and eigenstate {l}, there is a error in random back transformation"
 
 
+# test using fourier and X operators
 def test_fourier_twice():
     l = rng.integers(0, high=d)
     zl = d_mat.z_d(d, l)
@@ -82,6 +85,7 @@ def test_fourier_twice():
     ), f"with dimension {d}, there is a error in doing X H operation on {l} eigenstate"
 
 
+# test operation on qudit GHZ state
 def test_ghz_d():
     n = rng.integers(0, high=5)
     ghz_d = d_mat.ghz_d(d, n)
