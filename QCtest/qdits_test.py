@@ -105,7 +105,6 @@ def test_ghz_d():
             axis=0,
         )
     )
-    print("hi")
     assert np.allclose(
         ghz_d_op, ghz_d_t
     ), f"with dimension {d} and {n} actors, there is a error when operating on GHZ"
