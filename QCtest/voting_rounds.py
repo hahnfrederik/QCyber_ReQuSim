@@ -108,12 +108,13 @@ class VotingProtocol(Protocol):
         if message["event"] == "measure":
             current_N = len(self.world.world_objects["Qubit"])
             multiqubit = self._get_multiqubit(current_N)
-            base = [mat.x0, mat.x1]
+            base = [[mat.x0], [mat.x1]]
             for i, actor in enumerate(self.actors):
                 measure_event = MeasurementEvent(
                     time=self.world.event_queue.current_time,
-                    station=actor,
+                    stations=[actor],
                     base=base,
+                    qubits = actor.qubits,
                     rng=self.rng,
                 )
                 self.world.event_queue.add_event(measure_event)

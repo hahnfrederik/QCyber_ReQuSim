@@ -865,16 +865,16 @@ class MeasurementEvent(Event):
 
     time: scalar
         Time at which the event will be resolved.
-    qubit: Qubit
-        The qubit which is being measured
-    station: Station
-        the station where the measurement is performed.
-    base: list
-        list of the basis states of the measurement basis which is executed
+    qubits:List of Qubits
+        The qubits which are being measured
+    station: Stations
+        the stations where the measurement is performed.
+    eigenstates: list of states
+        list of the states which are part of the 1 / -1 eigenspace. These will be used for the projectors
         Default: computational basis
     callback_functions: list of callables, or None
         these will be called in order, after the event has been resolved.
-        Callbacks can also be added with the ass_callback method.
+        Callbacks can also be added with the add_callback method.
         Default: None
 
     Attributes
@@ -883,21 +883,27 @@ class MeasurementEvent(Event):
     Current Assumptions
     -------------------
 
-    measurement is only for one qubit at a time (maybe station makes measurement on multiple qubits)
-
     """
 
-    def __init__(self, time, station, rng=None, base=None, callback_functions=None):
-        self.qubit = station.qubits[0]
-        self.station = station
+    def __init__(self, time, qubits ,stations, rng=None, base=None, callback_functions=None):
+        self.qubits = qubits
+        self.stations = stations
         super(MeasurementEvent, self).__init__(
             time,
-            required_objects=[self.qubit],
+            required_objects=[qubit for qubit in self.qubits],
             callback_functions=callback_functions,
         )
 
         if base is None:
-            self.base = [mat.z0, mat.z1]
+            eigenspace_0 = [mat.z0]
+            eigenspace_1 = [mat.z1]
+            for i in range(len(qubits)-1):
+                eigenspace_0_new = [mat.tensor(ket, mat.z0) for ket in eigenspace_0] + [mat.tensor(ket, mat.z1) for ket in eigenspace_1]
+                eigenspace_1_new = [mat.tensor(ket, mat.z1) for ket in eigenspace_0] + [mat.tensor(ket, mat.z0) for ket in eigenspace_1]
+                eigenspace_0 = eigenspace_0_new
+                eigenspace_1 = eigenspace_1_new
+            self.base = [eigenspace_0, eigenspace_1]
+        
         else:
             self.base = base
         if rng is None:
@@ -908,7 +914,7 @@ class MeasurementEvent(Event):
     def __repr__(self):
         return (
             self.__class__.__name__
-            + f"(time={self.time},station={self.station}, base = {self.base[0],self.base[1]},"
+            + f"(time={self.time},station={self.station}, eigenspaces = {self.base[0],self.base[1]},"
             + f"callback_functions={self._callback_functions}"
             + ")"
         )
@@ -929,14 +935,16 @@ class MeasurementEvent(Event):
         dict
             The return_dict of this event is updated with this.
         """
+        
+        # for now we assume that all qubits are from the same higher order object. If multiple, the two individual multiqubits systems should be combined to one big one.
+        multiqubit = self.qubits[0].higher_order_object
 
-        multiqubit = self.qubit.higher_order_object
 
         # should not happen typically
-        # one could mearue a qubit, but without higher order object, there is no wy to get to the density state
-        # could be pair is higher order instance, but that shouldnt happen in our case. Furthermore, the idea is generalize pair into MultiQubit
+        # one could measure a single qubit, but without higher order object, there is no way to get to the density state. Also, in terms of requsim, it should be uninteresting
+        # could be pair is higher order instance, but that shouldnt happen in our case. Furthermore, the idea is to generalize pair into MultiQubit so the scenario where the qubit is part of a pair is technically covered.
         assert multiqubit is not None
-
+        
         # make sure multiqubit is updated
         multiqubit.update_time()
 
@@ -944,17 +952,18 @@ class MeasurementEvent(Event):
         measuring_index = []
         rest_qubits = []
         rest_index = []
-
+        
+        #what if the qubits are from two different systems?
+        
         for idx, qubit in enumerate(multiqubit._qubits):
-            if qubit in self.station.qubits:
+            if qubit in self.qubits:
                 measuring_qubit += [qubit]
                 measuring_index += [idx]
             else:
                 rest_qubits += [qubit]
                 rest_index += [idx]
 
-        # this assertion holds only for the case that we measure one qubit at a time
-        assert len(measuring_qubit) == 1
+        assert len(measuring_qubit) >=1
 
         rho = multiqubit.state
         rho_reordered = mat.reorder(
@@ -967,16 +976,20 @@ class MeasurementEvent(Event):
 
         # compute projectors (maybe write this outside of this class)
         proj = []
-        if N > 1:
+        if N > len(measuring_qubit):
+            proj_1 = [mat.tensor(eigstate @ mat.H(eigstate), mat.I(2**(N-len(measuring_qubit)))) for eigstate in self.base[0]]
             proj.append(
-                mat.tensor(self.base[0] @ mat.H(self.base[0]), mat.I(2 ** (N - 1)))
+                np.sum(proj_1, axis=0)
             )
+            proj_2 = [mat.tensor(eigstate @ mat.H(eigstate), mat.I(2**(N-len(measuring_qubit)))) for eigstate in self.base[1]]
             proj.append(
-                mat.tensor(self.base[1] @ mat.H(self.base[1]), mat.I(2 ** (N - 1)))
+                np.sum(proj_2, axis=0)
             )
         else:
-            proj.append(self.base[0] @ mat.H(self.base[0]))
-            proj.append(self.base[1] @ mat.H(self.base[1]))
+            proj_1 = [mat.tensor(eigstate @ mat.H(eigstate)) for eigstate in self.base[0]]
+            proj.append(np.sum(proj_1, axis=0))
+            proj_2 = [mat.tensor(eigstate @ mat.H(eigstate)) for eigstate in self.base[1]]
+            proj.append(np.sum(proj_2, axis=0))
 
         # calculate probabilities
         probs = []
@@ -1004,20 +1017,19 @@ class MeasurementEvent(Event):
         # random choice of outcome
         choice = self.rng.choice(2, 1, p=probs)[0]
 
-        if N > 1:
+        if N > len(measuring_qubit):
             rho_new = proj[choice] @ rho_reordered @ proj[choice] / probs[choice]
             rho_new = mat.ptrace(rho_new, [0])
         else:
             rho_new = np.empty(0)
 
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
-        assert len(rest_qubits) == N - 1
-        assert (rho_new.shape[0] == 0 and N - 1 == 0) or int(
-            np.log2(rho_new.shape[0])
-        ) == N - 1
-        if N > 1:
+        assert len(rest_qubits) == N - len(measuring_qubit)
+        assert (rho_new.shape[0] == 0 and N - len(measuring_qubit) == 0) or int(
+            np.log2(rho_new.shape[0])) == N - len(measuring_qubit)
+        if N > len(measuring_qubit):
             new_multi = quantum_objects.MultiQubit(
-                world=self.station.world, qubits=rest_qubits, initial_state=rho_new
+                world=self.stations[0].world, qubits=rest_qubits, initial_state=rho_new
             )
 
         # cleanup
@@ -1026,9 +1038,37 @@ class MeasurementEvent(Event):
         multiqubit.destroy()
         return {
             "measurement_outcome": choice,
-            "measurement_station": self.station,
+            "measurement_station": self.stations,
         }
 
+class GeneralMeasurementEvent(Event):
+    """An Event that simulates measurements of qubit, but without specific knowledge of the outcome.
+    This is a generalization of the above event. The resulting density matrix is changed in a classical ensemble fashion.
+
+    Parameters
+    ----------
+
+    time: scalar
+        Time at which the event will be resolved.
+    qubits:List of Qubits
+        The qubits which is being measured.
+    station: Stations
+        the stations where the measurements are performed.
+    base: list
+        list of the basis states of the measurement basis which is executed for each station
+        Default: computational basis
+    callback_functions: list of callables, or None
+        these will be called in order, after the event has been resolved.
+        Callbacks can also be added with the add_callback method.
+        Default: None
+
+    Attributes
+    ----------
+
+    Current Assumptions
+    -------------------
+
+    """
 
 class EventQueue(object):
     """Provides methods to queue and resolve Events in order.

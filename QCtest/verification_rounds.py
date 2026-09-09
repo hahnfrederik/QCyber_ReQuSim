@@ -145,8 +145,9 @@ class VerificationProtocol(Protocol):
             for i, base in enumerate(bases):
                 measure_event = MeasurementEvent(
                     time=self.world.event_queue.current_time,
-                    station=self.actors[i],
-                    base=base,
+                    stations=[self.actors[i]],
+                    qubits = self.actors[i].qubits,
+                    base=[[eigspace] for eigspace in base],
                     rng=self.rng,
                 )
                 self.world.event_queue.add_event(measure_event)
@@ -168,8 +169,9 @@ if __name__ == "__main__":
     for j in range(N):
         meas_event = MeasurementEvent(
             time=world.event_queue.current_time,
-            station=stations[j],
-            base=[mat.z0, mat.z1],
+            station=[stations[j]],
+            qubits = stations[j].qubits,
+            base=[[mat.z0], [mat.z1]],
         )
         world.event_queue.add_event(meas_event)
     world.print_status()
