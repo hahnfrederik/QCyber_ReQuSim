@@ -21,7 +21,7 @@ repos:
       - id: debug-statements
       - id: name-tests-test
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.11.0
+    rev: v3.4.0
     hooks:
       - id: pyupgrade
         name: pyupgrade (you might have to git add files again)
@@ -33,7 +33,7 @@ repos:
       - id: python-no-eval
       - id: python-check-mock-methods
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 25.11.0
     hooks:
       - id: black
         name: Black formatter (you might have to git add files)
