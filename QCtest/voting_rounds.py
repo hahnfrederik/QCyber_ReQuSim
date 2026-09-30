@@ -11,7 +11,7 @@ class VotingProtocol(Protocol):
     def __init__(self):
         self.time_list = []
         self.state_list = []
-        super(VotingProtocol, self).__init__(world=None)
+        super().__init__(world=None)
 
     @property
     def data():
@@ -114,7 +114,7 @@ class VotingProtocol(Protocol):
                     time=self.world.event_queue.current_time,
                     stations=[actor],
                     base=base,
-                    qubits = actor.qubits,
+                    qubits=actor.qubits,
                     rng=self.rng,
                 )
                 self.world.event_queue.add_event(measure_event)

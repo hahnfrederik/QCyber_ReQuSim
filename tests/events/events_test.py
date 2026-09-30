@@ -23,7 +23,7 @@ class DummyEvent(Event):
     def __init__(
         self, time, required_objects=[], ignore_blocked=False, callback_functions=[]
     ):
-        super(DummyEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=required_objects,
             ignore_blocked=ignore_blocked,
@@ -39,7 +39,7 @@ class DummyEvent(Event):
 
 class PriorityEvent(Event):
     def __init__(self, time, required_objects=[], priority=20):
-        super(PriorityEvent, self).__init__(
+        super().__init__(
             time=time, required_objects=required_objects, priority=priority
         )
 

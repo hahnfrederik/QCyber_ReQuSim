@@ -6,13 +6,13 @@ from requsim.quantum_objects import WorldObject, Station, Source
 
 class DummyObject(WorldObject):
     def __init__(self, world):
-        super(DummyObject, self).__init__(world=world)
+        super().__init__(world=world)
 
 
 class CustomTypeObject(WorldObject):
     def __init__(self, world, custom_type):
         self._type = custom_type
-        super(CustomTypeObject, self).__init__(world=world)
+        super().__init__(world=world)
 
     @property
     def type(self):

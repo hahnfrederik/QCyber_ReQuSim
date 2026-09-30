@@ -35,7 +35,7 @@ class MultiQubit(WorldObject):
             noise_handler = self._generate_qubit_noise_handler(qubit_index)
             self._noise_handler_by_qubit[qubit] = noise_handler
             qubit.add_noise_handler(noise_handler)
-        super(MultiQubit, self).__init__(world=world, label=label)
+        super().__init__(world=world, label=label)
 
     def __repr__(self):
         return (
@@ -54,9 +54,11 @@ class MultiQubit(WorldObject):
             + " between stations "
             + ", ".join(
                 [
-                    x._info["station"].label
-                    if x._info["station"]
-                    else str(x._info["station"])
+                    (
+                        x._info["station"].label
+                        if x._info["station"]
+                        else str(x._info["station"])
+                    )
                     for x in self.qubits
                 ]
             )
@@ -97,4 +99,4 @@ class MultiQubit(WorldObject):
         for qubit in self._qubits:
             if qubit in qubit.world:  # doesn't need to get deleted twice
                 qubit.remove_noise_handler(self._noise_handler_by_qubit[qubit])
-        super(MultiQubit, self).destroy()
+        super().destroy()

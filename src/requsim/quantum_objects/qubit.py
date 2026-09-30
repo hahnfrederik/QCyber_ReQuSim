@@ -41,7 +41,7 @@ class Qubit(WorldObject):
         self._noise_handlers = []
         self._time_dependent_noises = []
         self.higher_order_object = None
-        super(Qubit, self).__init__(world=world, label=label)
+        super().__init__(world=world, label=label)
 
     def __repr__(self):
         return self.__class__.__name__ + (

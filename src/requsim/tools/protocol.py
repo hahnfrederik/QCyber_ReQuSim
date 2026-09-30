@@ -73,7 +73,7 @@ class TwoLinkProtocol(Protocol):
         self.time_list = []
         self.state_list = []
         self.communication_speed = communication_speed
-        super(TwoLinkProtocol, self).__init__(world=world)
+        super().__init__(world=world)
 
     @property
     def data(self):

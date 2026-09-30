@@ -41,7 +41,7 @@ class Pair(WorldObject):
         # add self as noise handler for its qubits
         self.qubit1.add_noise_handler(self._qubit1_noise_handler)
         self.qubit2.add_noise_handler(self._qubit2_noise_handler)
-        super(Pair, self).__init__(world=world, label=label)
+        super().__init__(world=world, label=label)
 
     def __repr__(self):
         return (
@@ -60,9 +60,11 @@ class Pair(WorldObject):
             + " between stations "
             + ", ".join(
                 [
-                    x._info["station"].label
-                    if x._info["station"]
-                    else str(x._info["station"])
+                    (
+                        x._info["station"].label
+                        if x._info["station"]
+                        else str(x._info["station"])
+                    )
                     for x in self.qubits
                 ]
             )
@@ -148,4 +150,4 @@ class Pair(WorldObject):
             self.qubit1.remove_noise_handler(self._qubit1_noise_handler)
         if self.qubit2 in self.world:
             self.qubit2.remove_noise_handler(self._qubit2_noise_handler)
-        super(Pair, self).destroy()
+        super().destroy()

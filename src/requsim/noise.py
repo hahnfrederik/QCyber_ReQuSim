@@ -4,7 +4,7 @@ from typing import Union
 from warnings import warn
 
 
-class NoiseChannel(object):
+class NoiseChannel:
     """Standardized way to define noise channels.
 
     This class can be simply called to apply this channel on a state of the
@@ -118,7 +118,7 @@ class NoiseChannel(object):
 
 
 @dataclass
-class NoiseModel(object):
+class NoiseModel:
     """Class for describing noise in a standardized way.
 
     Parameters

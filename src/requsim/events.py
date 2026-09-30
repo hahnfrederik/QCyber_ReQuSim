@@ -244,7 +244,7 @@ class GenericEvent(Event):
         self._resolve_function = resolve_function
         self._resolve_function_args = args
         self._resolve_function_kwargs = kwargs
-        super(GenericEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=required_objects,
             priority=priority,
@@ -316,7 +316,7 @@ class SourceEvent(Event):
         self.initial_state = initial_state
         self.generation_args = args
         self.generation_kwargs = kwargs
-        super(SourceEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=[self.source, *self.source.target_stations],
             callback_functions=callback_functions,
@@ -403,7 +403,7 @@ class MultiSourceEvent(Event):
         self.initial_state = initial_state
         self.generation_args = args
         self.generation_kwargs = kwargs
-        super(MultiSourceEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=[self.source, *self.source.target_stations],
             callback_functions=callback_functions,
@@ -481,7 +481,7 @@ class EntanglementSwappingEvent(Event):
     def __init__(self, time, pairs, station, callback_functions=None):
         self.pairs = pairs
         self.station = station
-        super(EntanglementSwappingEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=self.pairs
             + [qubit for pair in self.pairs for qubit in pair.qubits],
@@ -621,7 +621,7 @@ class DiscardQubitEvent(Event):
         self, time, qubit, priority=39, ignore_blocked=True, callback_functions=None
     ):
         self.qubit = qubit
-        super(DiscardQubitEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=[self.qubit],
             priority=priority,
@@ -716,7 +716,7 @@ class EntanglementPurificationEvent(Event):
                 + repr(protocol)
             )
         self.communication_time = communication_time
-        super(EntanglementPurificationEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=self.pairs
             + [qubit for pair in self.pairs for qubit in pair.qubits],
@@ -827,7 +827,7 @@ class UnblockEvent(Event):
 
     def __init__(self, time, quantum_objects, priority=0, callback_functions=None):
         self.quantum_objects = quantum_objects
-        super(UnblockEvent, self).__init__(
+        super().__init__(
             time=time,
             required_objects=self.quantum_objects,
             priority=priority,
@@ -885,10 +885,12 @@ class MeasurementEvent(Event):
 
     """
 
-    def __init__(self, time, qubits ,stations, rng=None, base=None, callback_functions=None):
+    def __init__(
+        self, time, qubits, stations, rng=None, base=None, callback_functions=None
+    ):
         self.qubits = qubits
         self.stations = stations
-        super(MeasurementEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=[qubit for qubit in self.qubits],
             callback_functions=callback_functions,
@@ -897,13 +899,17 @@ class MeasurementEvent(Event):
         if base is None:
             eigenspace_0 = [mat.z0]
             eigenspace_1 = [mat.z1]
-            for i in range(len(qubits)-1):
-                eigenspace_0_new = [mat.tensor(ket, mat.z0) for ket in eigenspace_0] + [mat.tensor(ket, mat.z1) for ket in eigenspace_1]
-                eigenspace_1_new = [mat.tensor(ket, mat.z1) for ket in eigenspace_0] + [mat.tensor(ket, mat.z0) for ket in eigenspace_1]
+            for i in range(len(qubits) - 1):
+                eigenspace_0_new = [mat.tensor(ket, mat.z0) for ket in eigenspace_0] + [
+                    mat.tensor(ket, mat.z1) for ket in eigenspace_1
+                ]
+                eigenspace_1_new = [mat.tensor(ket, mat.z1) for ket in eigenspace_0] + [
+                    mat.tensor(ket, mat.z0) for ket in eigenspace_1
+                ]
                 eigenspace_0 = eigenspace_0_new
                 eigenspace_1 = eigenspace_1_new
             self.base = [eigenspace_0, eigenspace_1]
-        
+
         else:
             self.base = base
         if rng is None:
@@ -935,16 +941,15 @@ class MeasurementEvent(Event):
         dict
             The return_dict of this event is updated with this.
         """
-        
+
         # for now we assume that all qubits are from the same higher order object. If multiple, the two individual multiqubits systems should be combined to one big one.
         multiqubit = self.qubits[0].higher_order_object
-
 
         # should not happen typically
         # one could measure a single qubit, but without higher order object, there is no way to get to the density state. Also, in terms of requsim, it should be uninteresting
         # could be pair is higher order instance, but that shouldnt happen in our case. Furthermore, the idea is to generalize pair into MultiQubit so the scenario where the qubit is part of a pair is technically covered.
         assert multiqubit is not None
-        
+
         # make sure multiqubit is updated
         multiqubit.update_time()
 
@@ -952,9 +957,9 @@ class MeasurementEvent(Event):
         measuring_index = []
         rest_qubits = []
         rest_index = []
-        
-        #what if the qubits are from two different systems?
-        
+
+        # what if the qubits are from two different systems?
+
         for idx, qubit in enumerate(multiqubit._qubits):
             if qubit in self.qubits:
                 measuring_qubit += [qubit]
@@ -963,7 +968,7 @@ class MeasurementEvent(Event):
                 rest_qubits += [qubit]
                 rest_index += [idx]
 
-        assert len(measuring_qubit) >=1
+        assert len(measuring_qubit) >= 1
 
         rho = multiqubit.state
         rho_reordered = mat.reorder(
@@ -977,18 +982,28 @@ class MeasurementEvent(Event):
         # compute projectors (maybe write this outside of this class)
         proj = []
         if N > len(measuring_qubit):
-            proj_1 = [mat.tensor(eigstate @ mat.H(eigstate), mat.I(2**(N-len(measuring_qubit)))) for eigstate in self.base[0]]
-            proj.append(
-                np.sum(proj_1, axis=0)
-            )
-            proj_2 = [mat.tensor(eigstate @ mat.H(eigstate), mat.I(2**(N-len(measuring_qubit)))) for eigstate in self.base[1]]
-            proj.append(
-                np.sum(proj_2, axis=0)
-            )
-        else:
-            proj_1 = [mat.tensor(eigstate @ mat.H(eigstate)) for eigstate in self.base[0]]
+            proj_1 = [
+                mat.tensor(
+                    eigstate @ mat.H(eigstate), mat.I(2 ** (N - len(measuring_qubit)))
+                )
+                for eigstate in self.base[0]
+            ]
             proj.append(np.sum(proj_1, axis=0))
-            proj_2 = [mat.tensor(eigstate @ mat.H(eigstate)) for eigstate in self.base[1]]
+            proj_2 = [
+                mat.tensor(
+                    eigstate @ mat.H(eigstate), mat.I(2 ** (N - len(measuring_qubit)))
+                )
+                for eigstate in self.base[1]
+            ]
+            proj.append(np.sum(proj_2, axis=0))
+        else:
+            proj_1 = [
+                mat.tensor(eigstate @ mat.H(eigstate)) for eigstate in self.base[0]
+            ]
+            proj.append(np.sum(proj_1, axis=0))
+            proj_2 = [
+                mat.tensor(eigstate @ mat.H(eigstate)) for eigstate in self.base[1]
+            ]
             proj.append(np.sum(proj_2, axis=0))
 
         # calculate probabilities
@@ -1026,7 +1041,8 @@ class MeasurementEvent(Event):
         # make the rho_new the new Multiqubit state involving all stations except thesself.station
         assert len(rest_qubits) == N - len(measuring_qubit)
         assert (rho_new.shape[0] == 0 and N - len(measuring_qubit) == 0) or int(
-            np.log2(rho_new.shape[0])) == N - len(measuring_qubit)
+            np.log2(rho_new.shape[0])
+        ) == N - len(measuring_qubit)
         if N > len(measuring_qubit):
             new_multi = quantum_objects.MultiQubit(
                 world=self.stations[0].world, qubits=rest_qubits, initial_state=rho_new
@@ -1040,6 +1056,7 @@ class MeasurementEvent(Event):
             "measurement_outcome": choice,
             "measurement_station": self.stations,
         }
+
 
 class GeneralMeasurementEvent(Event):
     """An Event that simulates measurements of qubit, but without specific knowledge of the outcome.
@@ -1070,7 +1087,8 @@ class GeneralMeasurementEvent(Event):
 
     """
 
-class EventQueue(object):
+
+class EventQueue:
     """Provides methods to queue and resolve Events in order.
 
     Attributes

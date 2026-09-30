@@ -12,7 +12,7 @@ class DummyEvent(Event):
             required_objects = []
         if callback_functions is None:
             callback_functions = []
-        super(DummyEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=required_objects,
             ignore_blocked=ignore_blocked,

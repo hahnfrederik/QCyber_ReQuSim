@@ -2,7 +2,7 @@ from .events import EventQueue
 from collections import defaultdict
 
 
-class World(object):
+class World:
     """A collection of WorldObjects with an EventQueue.
 
     The World can be understood as a central object describing an experimental

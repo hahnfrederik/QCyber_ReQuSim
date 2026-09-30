@@ -14,6 +14,7 @@ from requsim.events import MeasurementEvent, MultiSourceEvent
 from requsim.quantum_objects import Station, MultiSource
 from requsim.world import World
 
+
 # create quantum state that is epsilon far from ghz state as per paper
 def eps_error(rho, N, noise_choice=0, index=0, error=0):
     if noise_choice == 0:
@@ -42,7 +43,7 @@ class VerificationProtocol(Protocol):
     def __init__(self):
         self.time_list = []
         self.state_list = []
-        super(VerificationProtocol, self).__init__(world=None)
+        super().__init__(world=None)
 
     @property
     def data():
@@ -146,7 +147,7 @@ class VerificationProtocol(Protocol):
                 measure_event = MeasurementEvent(
                     time=self.world.event_queue.current_time,
                     stations=[self.actors[i]],
-                    qubits = self.actors[i].qubits,
+                    qubits=self.actors[i].qubits,
                     base=[[eigspace] for eigspace in base],
                     rng=self.rng,
                 )
@@ -170,7 +171,7 @@ if __name__ == "__main__":
         meas_event = MeasurementEvent(
             time=world.event_queue.current_time,
             station=[stations[j]],
-            qubits = stations[j].qubits,
+            qubits=stations[j].qubits,
             base=[[mat.z0], [mat.z1]],
         )
         world.event_queue.add_event(meas_event)

@@ -42,7 +42,7 @@ def _random_test_state(n):
 class _PositionWorldObject(WorldObject):
     def __init__(self, world, position, label=None):
         self.position = position
-        super(_PositionWorldObject, self).__init__(world=world, label=label)
+        super().__init__(world=world, label=label)
 
 
 class TestAuxFunctions(unittest.TestCase):

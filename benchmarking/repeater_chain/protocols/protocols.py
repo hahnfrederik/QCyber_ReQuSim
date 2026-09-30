@@ -48,7 +48,7 @@ class BaseManylinkProtocol(Protocol):
         self.time_list = []
         self.state_list = []
         self.scheduled_swappings = defaultdict(list)
-        super(BaseManylinkProtocol, self).__init__()
+        super().__init__()
 
     def setup(self, world, stations, sources, num_memories=1, communication_speed=C):
         self.world = world
@@ -289,7 +289,7 @@ class CustomManylinkProtocol(BaseManylinkProtocol):
     def __init__(self):
         self.step = 0
         self.counter = 0
-        super(CustomManylinkProtocol, self).__init__()
+        super().__init__()
 
     def check(self, message=None):
         if len(self.world.event_queue.queue) != 0:
@@ -326,7 +326,7 @@ class CompositeProtocol(BaseManylinkProtocol):
     def __init__(self, subprotocol):
         self.subprotocol = subprotocol
         self.subprotocols = []
-        super(CompositeProtocol, self).__init__()
+        super().__init__()
 
     def setup(
         self,
@@ -336,7 +336,7 @@ class CompositeProtocol(BaseManylinkProtocol):
         num_memories=1,
         communication_speed=C,
     ):
-        super(CompositeProtocol, self).setup(
+        super().setup(
             world=world,
             stations=stations,
             sources=sources,
@@ -385,7 +385,7 @@ class CompositeProtocol(BaseManylinkProtocol):
                 protocol.check(message=message)
 
 
-class LocalProtocol(object):
+class LocalProtocol:
     def __init__(self):
         # attributes describing the scenario and options once set up
         self.station = None
