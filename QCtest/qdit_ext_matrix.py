@@ -2,7 +2,6 @@ import requsim.libs.matrix as mat
 import numpy as np
 from cmath import sqrt
 
-
 # extending the elementary vectors and operators for d dimensions
 
 

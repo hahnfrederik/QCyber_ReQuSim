@@ -118,8 +118,15 @@ for k in range(K):
                     meas_results = []
                     bases = []
                     for i in range(N):
-                        bases += [[1/np.sqrt(2) * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1),
-                                    1/ np.sqrt(2) * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1),]
+                        bases += [
+                            [
+                                1
+                                / np.sqrt(2)
+                                * (mat.z0 + np.exp(1j * angles_list[i]) * mat.z1),
+                                1
+                                / np.sqrt(2)
+                                * (mat.z0 - np.exp(1j * angles_list[i]) * mat.z1),
+                            ]
                         ]
                     current_message["event"] = "measure"
                     current_message["bases"] = bases

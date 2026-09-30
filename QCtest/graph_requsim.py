@@ -138,10 +138,9 @@ def scanario_1_3():
 
 # this code is taken form julius
 
+
 # the graph should be of type GraphsReq
-
-
-class TCP_graph_protocol(Protocol):
+class TCP_graph_protocol_scenario_1(Protocol):
 
     def __init__(self, graph, world=None):
         super().__init__(world)
