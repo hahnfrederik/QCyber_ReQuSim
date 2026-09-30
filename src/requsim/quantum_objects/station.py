@@ -67,7 +67,7 @@ class Station(WorldObject):
         self.BSM_noise_model = BSM_noise_model
         self.creation_noise_channel = creation_noise_channel
         self.dark_count_probability = dark_count_probability
-        super(Station, self).__init__(world=world, label=label)
+        super().__init__(world=world, label=label)
 
     def __repr__(self):
         return self.__class__.__name__ + (

@@ -10,7 +10,7 @@ class DummyEvent(Event):
     def __init__(
         self, time, required_objects=[], ignore_blocked=False, callback_functions=[]
     ):
-        super(DummyEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=required_objects,
             ignore_blocked=ignore_blocked,
@@ -28,7 +28,7 @@ class OtherDummyEvent(Event):
     def __init__(
         self, time, required_objects=[], ignore_blocked=False, callback_functions=[]
     ):
-        super(OtherDummyEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=required_objects,
             ignore_blocked=ignore_blocked,
@@ -46,7 +46,7 @@ class DummySubclassAEvent(DummyEvent):
     def __init__(
         self, time, required_objects=[], ignore_blocked=False, callback_functions=[]
     ):
-        super(DummySubclassAEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=required_objects,
             ignore_blocked=ignore_blocked,
@@ -58,7 +58,7 @@ class DummySubclassBEvent(DummyEvent):
     def __init__(
         self, time, required_objects=[], ignore_blocked=False, callback_functions=[]
     ):
-        super(DummySubclassBEvent, self).__init__(
+        super().__init__(
             time,
             required_objects=required_objects,
             ignore_blocked=ignore_blocked,

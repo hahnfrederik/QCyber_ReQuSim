@@ -32,7 +32,7 @@ class Source(WorldObject):
     def __init__(self, world, position, target_stations, label=None):
         self.position = position
         self.target_stations = target_stations
-        super(Source, self).__init__(world=world, label=label)
+        super().__init__(world=world, label=label)
 
     def __str__(self):
         return (
@@ -177,7 +177,7 @@ class SchedulingSource(Source):
     ):
         self.time_distribution = time_distribution
         self.state_generation = state_generation
-        super(SchedulingSource, self).__init__(world, position, target_stations, label)
+        super().__init__(world, position, target_stations, label)
 
     def schedule_event(self):
         """Schedule a SourceEvent according to the specified rules.
@@ -239,9 +239,7 @@ class MultiSchedulingSource(MultiSource):
     ):
         self.time_distribution = time_distribution
         self.state_generation = state_generation
-        super(MultiSchedulingSource, self).__init__(
-            world, position, target_stations, label
-        )
+        super().__init__(world, position, target_stations, label)
 
     def schedule_event(self):
         """Schedule a MultiSourceEvent according to the specified rules.

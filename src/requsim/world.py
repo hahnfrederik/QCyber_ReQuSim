@@ -23,7 +23,7 @@ class World:
         self.event_queue = EventQueue()
         # world_objects collects everything about the current state of the world
         self.world_objects = {}
-        self._label_counters = defaultdict(lambda: 0)
+        self._label_counters = defaultdict(int)
 
     def __contains__(self, world_object):
         return world_object in self.world_objects[world_object.type]
