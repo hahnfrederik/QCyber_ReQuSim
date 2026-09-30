@@ -10,7 +10,9 @@ from requsim.quantum_objects import (
 )
 import requsim.libs.matrix as mat
 from requsim.libs.aux_functions import distance
-from requisim.tools.protocol import Protocol
+from requsim.tools.protocol import Protocol
+from requsim.noise import NoiseChannel, NoiseModel
+import pandas as pd
 
 # some constants
 C = 2e8
@@ -49,35 +51,6 @@ class GraphsReq(gg.Graph):
         return self._rho
 
 
-# 12 qbit graph for quantum beaver triples
-N = 12
-b_graph_1 = GraphsReq(
-    N=12,
-    E=[
-        (0, 1),
-        (1, 2),
-        (3, 4),
-        (4, 5),
-        (6, 7),
-        (2, 8),
-        (7, 10),
-        (5, 9),
-        (8, 11),
-        (19, 11),
-        (9, 11),
-    ],
-)
-
-# scenario 1
-# ghz state sending out
-
-
-A = [0, 4, 9, 10]
-B = [1, 3, 7, 8]
-R = [2, 5, 6, 11]
-# initializing requsim
-
-
 stationN = 4
 world = World()
 
@@ -85,7 +58,7 @@ world = World()
 radiants = np.linspace(0, 2 * np.pi, stationN + 1)
 
 
-def state_generation_scenario_1_1(source):
+def state_generation_ghz(source):
     ghz_state = mat.ghz(stationN) @ mat.H(mat.ghz(stationN))
     return ghz_state
 
@@ -127,7 +100,6 @@ def scenario_1_2(source_main):
 def scanario_1_3():
     bell_sources = []
     current_message = None
-
     return
 
 
@@ -140,66 +112,234 @@ def scanario_1_3():
 
 
 # the graph should be of type GraphsReq
+
+
+def transform_matrix(N, comp_dens):
+    my_tuple = ()
+    for i in range(2**N):
+        operator = np.array([[1]])
+        for n in range(N):
+            if i & (1 << ((N - 1) - n)):
+                operator = mat.tensor(operator, mat.Z)
+            else:
+                operator = mat.tensor(operator, mat.I(2))
+        my_tuple += (np.dot(operator, comp_dens),)
+    return mat.H(np.hstack(my_tuple))
+
+
 class TCP_graph_protocol_scenario_1(Protocol):
 
-    def __init__(self, graph, world=None):
-        super().__init__(world)
+    def __init__(self, graph, world=None, communication_speed=None):
+        if world is not None or communication_speed is not None:
+            warn(
+                "Initializing Protocol with setup-dependent arguments (like world) is no longer recommended "
+                + "and may be deprecated in future versions. "
+                + "Protocols should be initializeable without tying it to a specific scenario. "
+                + "Use the setup method to pass scenario-dependent arguments instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        self.time_list = []
+        self.state_list = []
+        self.communication_speed = communication_speed
         self.graph = graph
-        self.U = self.transform_matrix()
+        self.Transform_graph = transform_matrix(self.graph.N, self.graph.rho)
+        super().__init__(world=world)
 
-    def transform_matrix():
-        my_tuple = ()
-        for i in range(2**self.graph.N):
-            operator = np.array([[1]])
-            for n in range(self.graph.N):
-                if i & (1 << ((N - 1) - n)):
-                    operator = mat.tensor(operator, mat.Z)
-                else:
-                    operator = mat.tensor(operator, mat.I(2))
-            my_tuple += (np.dot(operator, self.graph.rho),)
-        return mat.H(np.hstack(my_tuple))
+    @property
+    def data(self):
+        return pd.DataFrame({"time": self.time_list, "state": self.state_list})
 
     def setup(self, world=None, communication_speed=None):
         """
         create the sources and so on
 
         """
-        # creating stations
-        self.stations = []
-        for i in range(self.graph.N):
-            station = Station(
-                world=self.world,
-                position=np.array([np.cos(radiants[i]), np.sin(radiants[i])]),
-            )
-            self.stations += [station]
+        if world is None:
+            if self.world is None:
+                raise ValueError(
+                    "world is not specified. "
+                    + "Must be provided either as part of the initialization (deprecated) or "
+                    + "the setup methos (recommended)."
+                )
+            else:
+                pass
+        else:
+            self.world = world
+        if communication_speed is None:
+            if self.communication_speed is None:
+                raise ValueError(
+                    "communication_speed is not specified. "
+                    + "Must be provided either as part of the initialization (deprecated) or"
+                    + "the setup method (recommended)."
+                )
+            else:
+                pass
+        else:
+            self.communication_speed = communication_speed
 
-        # creating source
-        self.source = MultiSchedulingSource(
-            world=self.world,
-            position=np.array([0, 0]),
-            target_stations=self.stations,
+        stations = self.world.world_objects["Station"]
+        assert len(stations) == self.graph.N
+        if isinstance(stations[0].position, int):
+            raise ValueError("position of stations should be in 2 dimensions")
+        else:
+            self.stations = stations
+
+        sources = self.world.world_objects["Source"]
+        assert len(sources) == 1
+        self.source_central = sources[0]
+
+        assert callable(getattr(self.source_central, "schedule_event", None))
+
+        # number of schedules pair needed?
+
+    def _get_graph_state_groups(self):
+        try:
+            graph_states = self.world.world_objects[f"{self.graph.N}-qubit MultiQubit"]
+        except KeyError:
+            graph_states = []
+        return graph_states
+
+    def _graph_groups_scheduled(self):
+        return list(
+            filter(
+                lambda event: (isinstance(event, MultiSourceEvent)),
+                self.world.event_queue.queue,
+            )
         )
+
+    def _eval_graph_state(self, g):
+        dists = []
+        for i in range(self.graph.N):
+            dists += [distance(self.source_central, self.stations[i])]
+            comm_distance = np.max(dists)
+            comm_time = comm_distance / self.communication_speed
+
+            self.time_list += [self.world.event_queue.current_time + comm_time]
+            self.state_list += [g.state]
+            return
 
     def check(self, message=None):
         """check current status and schedule new events.
 
         looks globally at the status of the whole 'world' and decides which events need to be scheduled.
         """
-        # sending qubits
-        # scenario 1
-        if message == "send_1":
-            self.source_1.schedule_event()
-        if message == "send_2":
-            return
-        # purifying central
-        if message == "purify_central":
-            return
-        # purify outer
-        if message == "purify_outer":
-            return
+        graph_groups = self._get_graph_state_groups()
+        num_graph = len(graph_groups)
+        num_graph_scheduled = len(self._graph_groups_scheduled())
+        # if no scheduled event and no ghz pair sent then send
+        if num_graph + num_graph_scheduled == 0:
+            self.source_central.schedule_event()
+
+        # if both gz is there, save some data and delete associated objects
+        if num_graph >= 1:
+            for g in graph_groups:
+                self._eval_graph_state(g)
+                for qubit in g.qubits:
+                    qubit.destroy()
+                g.destroy()
+            self.source_central.schedule_event()  # after destroying, the event queue would be empty
 
 
 # for computational basis,...
 
+
+def run(length, max_iter, graph, params):
+    C = params["COMMUNICATION_SPEED"]
+    P_LINK = params["P_LINK"]
+    T_DP = params["T_DP"]
+    LAMBDS_MEAS = params["LAMBDA_MEAS"]
+    L_ATT = params["L_ATT"]
+
+    def state_generation(source):
+        state = graph.rho
+        comm_distance = max(
+            [
+                distance(source, source.target_stations[i])
+                for i in range(len(source.target_stations))
+            ]
+        )
+        storage_time = 2 * comm_distance / C
+        for idx, station in enumerate(source.target_stations):
+            if station.memory_noise is not None:
+                state = station.memory_noise.apply_to(
+                    rho=state, qubit_indices=[idx], t=storage_time
+                )
+        return state
+
+    def time_distribution(source):
+        comm_distance = max(
+            [
+                distance(source, source.target_stations[i])
+                for i in range(len(source.target_stations))
+            ]
+        )
+        trial_time = 2 * comm_distance / C
+        eta = P_LINK * np.exp(-comm_distance / L_ATT)
+        num_trials = np.random.geometric(
+            eta
+        )  # change here in terms of how many stations we have
+        time_taken = num_trials * trial_time
+        return time_taken
+
+    def Meas_error_func(rho):
+        return LAMBDA_MEAS * rho + (1 - LAMBDA_MEAS) * mat.I(graph.N) / graph.N
+
+    Meas_noise_channel = NoiseChannel(n_qubits=2, channel_function=Meas_error_func)
+    Meas_error_model = NoiseModel(channel_before=Meas_noise_channel)
+
+    world = World()
+    # creating stations
+
+    stations = []
+    for i in range(graph.N):
+        station = Station(
+            world=world,
+            position=np.array([np.cos(radiants[i]), np.sin(radiants[i])]),
+        )
+        stations += [station]
+
+    source_graph = MultiSchedulingSource(
+        world=world,
+        position=np.array([0, 0]),
+        target_stations=stations,
+        time_distribution=time_distribution,
+        state_generation=state_generation,
+    )
+
+    protocol = TCP_graph_protocol_scenario_1(graph)
+    protocol.setup(world=world, communication_speed=C)
+
+    current_message = None
+    while len(protocol.time_list) < max_iter:
+        # world.print_status()
+        protocol.check(message=current_message)
+        current_message = world.event_queue.resolve_next_event()
+
+    return protocol
+
+
 if __name__ == "__main__":
-    scenario_1_2()
+    params = {
+        "P_LINK": 0.80,
+        "T_DP": 100e-3,
+        "LAMBDA_MEAS": 0.99,
+        "COMMUNICATION_SPEED": 2e8,
+        "L_ATT": 22e3,
+    }
+
+    graph = GraphsReq(
+        N=4,
+        E=[
+            (0, 1),
+            (0, 2),
+            (0, 3),
+        ],
+    )
+    length_list = np.linspace(20e3, 200e3, num=8)
+    max_iter = 10
+    raw_data = [
+        run(length=length, graph=graph, max_iter=max_iter, params=params).data
+        for length in length_list
+    ]
+    print(len(raw_data))
