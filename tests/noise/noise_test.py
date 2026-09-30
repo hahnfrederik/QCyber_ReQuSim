@@ -1,4 +1,5 @@
 """Tests for noise channels."""
+
 import pytest
 from requsim.noise import NoiseChannel
 import numpy as np

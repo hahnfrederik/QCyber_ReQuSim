@@ -5,6 +5,7 @@ simulation package (there are better tools for that), it is nonetheless a good
 starting point. Knowing how the quantum objects work is also essential for
 creating custom events.
 """
+
 import numpy as np
 from requsim.world import World
 from requsim.quantum_objects import Qubit, Pair

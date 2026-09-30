@@ -4,6 +4,7 @@ While a lot of this is already covered by tests of the quantum_objects and
 time-based decoherence, this file adds tests to make sure it works for arbitrary
 noise channels and the internal delegation mechanisms (like unresolved noiseperform as expected.
 """
+
 import pytest
 import numpy as np
 from requsim.world import World

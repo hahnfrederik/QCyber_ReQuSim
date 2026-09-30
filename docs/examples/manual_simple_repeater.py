@@ -8,6 +8,7 @@ repeater station in-between that performs entanglement swapping.
 Note that this implementation does not concern itself with timing and
 failed trials, but of course this could be added manually as well.
 """
+
 import numpy as np
 from requsim.quantum_objects import Station, Source, Pair
 from requsim.world import World

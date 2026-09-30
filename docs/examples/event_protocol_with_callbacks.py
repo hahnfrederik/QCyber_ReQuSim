@@ -10,6 +10,7 @@ While this breaks the neat interpretation of the protocol deciding what to do
 next purely from the current state of the simulation, this way can save time
 especially for complex setups where the current state may be hard to analyze.
 """
+
 import numpy as np
 import pandas as pd
 from requsim.tools.protocol import TwoLinkProtocol

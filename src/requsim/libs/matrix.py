@@ -8,7 +8,6 @@ import numpy as np
 from math import log
 from cmath import sqrt
 
-
 # Defining elementary vectors and operators - never modify these in a function!!
 z0 = np.array([1, 0]).reshape(2, 1)
 z1 = np.array([0, 1]).reshape(2, 1)

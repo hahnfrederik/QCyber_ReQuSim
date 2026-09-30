@@ -1,4 +1,5 @@
 """Benchmarking for a simple scenario with only some basic parameters."""
+
 from collections import defaultdict
 from copy import deepcopy
 from time import time

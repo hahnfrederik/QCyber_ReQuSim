@@ -1,4 +1,5 @@
 """Functions for pre-defined entanglement purification protocols."""
+
 import numpy as np
 from . import matrix as mat
 

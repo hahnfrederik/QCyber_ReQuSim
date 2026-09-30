@@ -27,6 +27,7 @@ Preprint: https://arxiv.org/abs/1508.02811
 The protocol in this example corresponds to the 'simultaneous' variant of the
 protocol discussed there, but with a simpler error model.
 """
+
 import numpy as np
 import pandas as pd
 from requsim.tools.protocol import TwoLinkProtocol

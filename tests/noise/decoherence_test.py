@@ -65,6 +65,7 @@ class TestDecoherence(unittest.TestCase):
             rho=trusted_state, epsilon=my_epsilon
         )
         self.assertTrue(np.allclose(pair.state, trusted_state))
+
         # do so many times
         def test_again(trusted_state):
             time_interval = np.random.random() * 20
@@ -113,6 +114,7 @@ class TestDecoherence(unittest.TestCase):
             rho=trusted_state, epsilon=my_epsilon
         )
         self.assertTrue(np.allclose(pair.state, trusted_state))
+
         # do so many times
         def test_again(trusted_state):
             time_interval = np.random.random() * 20

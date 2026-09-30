@@ -11,7 +11,6 @@ from requsim.events import EntanglementSwappingEvent, SourceEvent
 from requsim.libs.aux_functions import distance
 from requsim.tools.protocol import Protocol
 
-
 C = 2e8  # speed of light in optical fiber
 L_ATT = 22000  # Attenuation length in optical fiber
 
