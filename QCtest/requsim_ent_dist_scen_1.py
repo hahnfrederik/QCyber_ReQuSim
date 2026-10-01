@@ -342,4 +342,4 @@ if __name__ == "__main__":
         run(length=length, graph=graph, max_iter=max_iter, params=params).data
         for length in length_list
     ]
-    print(len(raw_data))
+    print(raw_data[0])
