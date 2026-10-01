@@ -95,6 +95,22 @@ class MultiQubit(WorldObject):
 
         return qubit_noise_handler
 
+    def is_between_stations(self, *stations):
+        """
+        Check wether qubits are at specified stations.
+
+        Parameters
+        ----------
+        stations : List[Stations]
+
+        Returns
+        -------
+        bool
+            True if multi_qubit is between the specified stations
+        """
+        # TODO for later
+        return True
+
     def destroy(self):
         for qubit in self._qubits:
             if qubit in qubit.world:  # doesn't need to get deleted twice
