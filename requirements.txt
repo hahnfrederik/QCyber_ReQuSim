@@ -8,6 +8,7 @@ commonmark==0.9.1
 distlib==0.4.0
 docutils==0.21.2
 filelock==3.20.1
+graphepp==0.5
 identify==2.6.15
 idna==3.11
 imagesize==1.4.1
