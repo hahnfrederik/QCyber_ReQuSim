@@ -12,7 +12,8 @@ authors = [
 license = {file = "LICENSE"}
 dependencies = [
     "numpy>=2.3.5",
-    "pandas>=2.3.3"
+    "pandas>=2.3.3",
+    "graphepp>=0.5"
 ]
 classifiers=[
     "License :: OSI Approved :: MIT License",
