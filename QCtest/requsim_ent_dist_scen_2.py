@@ -12,6 +12,7 @@ import requsim.libs.matrix as mat
 from requsim.libs.aux_functions import distance
 from requsim.tools.protocol import Protocol
 from requsim.noise import NoiseChannel, NoiseModel
+from requsim.events import TCP_Purifying_Event_graph
 import pandas as pd
 
 # some constants
@@ -45,6 +46,7 @@ class GraphsReq(gg.Graph):
     def __init__(self, N, E, sets=[]):
         super().__init__(N, E, sets)
         self._rho = density_from_graph(self.adj)
+        self._rho_graph = transform_matrix(self.N, self.rho)
 
     @property
     def rho(self):
@@ -127,7 +129,7 @@ def transform_matrix(N, comp_dens):
     return mat.H(np.hstack(my_tuple))
 
 
-class TCP_graph_protocol_scenario_1(Protocol):
+class TCP_graph_protocol_scenario_2(Protocol):
 
     def __init__(self, graph, world=None, communication_speed=None):
         if world is not None or communication_speed is not None:
@@ -143,7 +145,6 @@ class TCP_graph_protocol_scenario_1(Protocol):
         self.state_list = []
         self.communication_speed = communication_speed
         self.graph = graph
-        self.Transform_graph = transform_matrix(self.graph.N, self.graph.rho)
         super().__init__(world=world)
 
     @property
@@ -228,17 +229,25 @@ class TCP_graph_protocol_scenario_1(Protocol):
         num_graph = len(graph_groups)
         num_graph_scheduled = len(self._graph_groups_scheduled())
         # if no scheduled event and no ghz pair sent then send
-        if num_graph + num_graph_scheduled == 0:
+        if (
+            num_graph + num_graph_scheduled < 2
+        ):  # we need two copies for one TCP protocol execution
             self.source_central.schedule_event()
 
-        # if both gz is there, save some data and delete associated objects
-        if num_graph >= 1:
+        # if both graph states are there, start tcp protocol
+        if num_graph == 2:
+            tcp_event = TCP_Purifying_Event_graph(
+                time=self.world.event_queue.current_time,
+                multiqubits=graph_groups,
+                graph=self.graph,
+            )
+            self.world.event_queue.add_event(tcp_event)
+
             for g in graph_groups:
                 self._eval_graph_state(g)
                 for qubit in g.qubits:
                     qubit.destroy()
                 g.destroy()
-            self.source_central.schedule_event()  # after destroying, the event queue would be empty
 
 
 # for computational basis,...
@@ -307,7 +316,7 @@ def run(length, max_iter, graph, params):
         state_generation=state_generation,
     )
 
-    protocol = TCP_graph_protocol_scenario_1(graph)
+    protocol = TCP_graph_protocol_scenario_2(graph)
     protocol.setup(world=world, communication_speed=C)
 
     current_message = None
