@@ -5,6 +5,7 @@ import numpy as np
 import requsim.quantum_objects as quantum_objects
 from collections import defaultdict
 from warnings import warn
+import graphepp as gg
 
 
 class Event(ABC):
@@ -1056,6 +1057,108 @@ class MeasurementEvent(Event):
             "measurement_outcome": choice,
             "measurement_station": self.stations,
         }
+
+
+def p1_var(rho, sigma, graph):
+    mu = np.zeros(len(rho))
+    for i in range(2**graph.N):
+        j = i & (_mask_b((1 << len(graph.b)) - 1, graph))
+        for k in range(2 ** len(graph.b)):
+            m = _mask_b(k, graph)
+            mu[i] += rho[(i ^ j) ^ m] * sigma[i ^ m]
+    if np.any(mu < 0):
+        mu = np.copy(mu)
+        mu[mu < 0] = 0
+    prob = np.sum(mu)
+    return prob, mu / prob
+
+
+class TCP_Purifying_Event_graph(Event):
+
+    def __init__(self, time, multiqubits, stations, graph, callback_functions=None):
+        self.multiqubits = multiqubits
+        self.stations = stations
+        self.graph = graph
+        super().__init__(
+            time=time,
+            required_objects=self.mutliqubits
+            + [
+                qubit for multiqubit in self.multiqubits for qubits in multiqubit.qubits
+            ],
+            callback_functions=callback_functions,
+        )
+
+    def __repr__(self):
+        return (
+            self.__class__.__name__
+            + f"(time={self.time}, multiqubits={self.multiqubits}), "
+            + f"stations={self.stations}, "
+            + f"ccallback_functions={self.callback_functions}"
+        )
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__} at time={self.time} using multiqubits "
+            + ", ".join([x.label for x in self.multiqubits])
+            + "."
+        )
+
+    def _main_effect(self):
+        """
+        Resolve the event.
+
+        Perform the TCP algorithm via the graph epp package.
+
+        Returns
+        -------
+        dict
+            the return_dict of this event is updated with this.
+        """
+        for multiqubit in self.multitubits:
+            multiqubit.update_time()
+        assert len(self.multiqubits) == 2  # should be two copies we purify
+
+        rho = self.multiqubits[0].state
+        sigma = self.multiqubits[1].state
+
+        rho = np.diag(self.U @ rho @ mat.H(self.U))
+        p_suc, output_state = p1_var(rho, sigma)
+        output = self.multiqubits[0]
+        output.state = output_state
+        output.is_blocked = True
+        for i in range(len(stations)):
+            output.qubits[i].is_blocked == True
+        for multiqubit in self.multiqubits[1:]:
+            for qb in multiqubit.qubits:
+                qb.destroy()
+            multiqubit.destroy()
+
+        if np.random.random() <= p_suc:  # success
+            unblock_event = UnblockEvent(
+                time=self.time + self.communication_time,
+                quantum_objects=[output] + [qbit for qbit in output.qubits],
+            )
+            self.event_queue.add_event(unblock_event)
+            return {"output_multiqubit": output, "is_successful": True}
+
+        else:  # fail
+
+            def destroy_function():
+                output.destroy()
+                for qubit in output.qubits:
+                    qubit.destory()
+                return {
+                    "destroyed_objects": [output] + [qubit for qubit in output.qubits]
+                }
+
+            destroy_event = GenericEvent(
+                time=self.time + self.communication_time,
+                resolve_function=destroy_function,
+                required_objects=[output_pair],
+                priority=0,
+                ignore_blocked=True,
+            )
+            return {"output_pair": output, "is_successful": False}
 
 
 class GeneralMeasurementEvent(Event):
