@@ -1075,16 +1075,13 @@ def p1_var(rho, sigma, graph):
 
 class TCP_Purifying_Event_graph(Event):
 
-    def __init__(self, time, multiqubits, stations, graph, callback_functions=None):
+    def __init__(self, time, multiqubits, graph, callback_functions=None):
         self.multiqubits = multiqubits
-        self.stations = stations
         self.graph = graph
         super().__init__(
             time=time,
-            required_objects=self.mutliqubits
-            + [
-                qubit for multiqubit in self.multiqubits for qubits in multiqubit.qubits
-            ],
+            required_objects=self.multiqubits
+            + [qubit for multiqubit in self.multiqubits for qubit in multiqubit.qubits],
             callback_functions=callback_functions,
         )
 
