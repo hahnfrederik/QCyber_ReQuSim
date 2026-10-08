@@ -3,6 +3,7 @@ import numpy as np
 from ..libs import matrix as mat
 import pandas as pd
 from warnings import warn
+from scipy import linalg
 
 
 def binary_entropy(p):
@@ -298,3 +299,125 @@ def standard_bipartite_evaluation(data_frame, err_corr_ineff=1):
         key_per_time,
         key_per_time_std_err,
     ]
+
+
+def ghz_fidelities(data: pd.DataFrame, N):
+    """function to calculate the fidelity of a given density matrix to the ghz state
+
+    Parameters
+    ----------
+    rho: np.ndarray
+        the density matrix of the quantum state that is to be compared to the ghz state
+    N: integer
+        the number of qubits in the system described by rho
+        Theoretically, it is not needed here since this can be calculated by rho itself
+
+    Returns
+    -------
+    fidelity: scalar
+        the fidelity of the state rho and a ghz state
+    """
+
+    # Generalize the function for general fidelity function for two states
+    z0s = [mat.z0] * N
+    z0s = mat.tensor(*z0s)
+    z1s = [mat.z1] * N
+    z1s = mat.tensor(*z1s)
+    ghz_psi = 1 / np.sqrt(2) * (z0s + z1s)
+
+    states = data["state"]
+    fidelities_list = np.real_if_close(
+        [np.dot(np.dot(mat.H(ghz_psi), state), ghz_psi)[0, 0] for state in states]
+    )
+
+    fidelity = np.mean(fidelities_list)
+
+    fidelity_std_err = np.std(fidelities_list) / np.sqrt(len(fidelities_list))
+    return fidelity, fidelity_std_err
+
+
+def standard_ghz_evaluation(data_frame, N=None, err_corr_ineff=1):
+    """Calculate fidelity and speed of GHZ state distribution.
+
+    Parameters
+    ----------
+
+    data_frame : pd.DataFrame
+        A pandas DataFrame with columns "time" and "state", representing
+        when each connection was made and the multi_qubit ghz-state associated with that connection.
+    N : int or None
+        The number of parties sharing the GHZ state. If None, N will be evaluated from the data. Default: None
+    err_corr_ineff : scalar
+        The error correction inefficency, whihc lowers the obtainable key rate.
+        1 means perfectly efficient; >1 indicated inefficiencies. Default: 1
+
+    Returns
+    -------
+
+    list of scalars
+       contains: raw rate,
+                 average fidelity,
+                 standard error of the mean fidelity,
+                 average aymptotic key rate per time,
+                 standard error of the mean of key rate per time
+    """
+
+    if N is None:
+        N = int(np.log2(data_frame["state"][0].shape[0]))
+
+    raw_rate = len(data_frame["time"]) / data_frame["time"].iloc[-1]
+    states = data_frame["state"]
+    fidelity, fidelity_std_err = ghz_fidelities(data=data_frame, N=N)
+
+    return [
+        raw_rate,
+        fidelity,
+        fidelity_std_err,
+    ]
+
+
+def ggraph_state_fidelity(data: pd.DataFrame, graph):
+    """Calculate the statistical fidelity of the raph states"""
+    states = data["state"]
+
+    """only necessary if both rho and sigma are not pure
+    sqrt_graph = linalg.sqrtm(graph.rho_graph)
+    sqrt_graph = np.real_if_close(sqrt_graph)
+    """
+    fidelities = np.real_if_close(
+        [mat.H(graph.psi) @ state @ graph.psi for state in states]
+    )
+    fidelity = np.mean(fidelities)
+    fidelity_std_err = np.std(fidelities) / np.sqrt(len(fidelities))
+    return fidelity, fidelity_std_err
+
+
+def standard_graph_state_evaluation(data_frame, graph, err_corr_ineff=1):
+    """Calculate fidelities and key rates from times and states.
+
+    Parameters
+    ----------
+    data_frame : pd.DataFrame
+        A pandas DataFrame with columns "time" and "state", representing
+        when each connection was made and the two-qubit state associated with
+        that connection.
+    err_corr_ineff : scalar
+        The error correction inefficiency, which lowers the obtainable key rate.
+        1 means perfectly efficient; >1 indicates inefficiencies. Default: 1
+
+    Returns
+    -------
+    list of scalars
+        contains: raw rate,
+                  average fidelity,
+                  standard error of the mean of fidelity,
+                  average asymptotic key rate per time,
+                  standard error of the mean of key rate per time
+
+    """
+
+    raw_rate = len(data_frame["time"]) / data_frame["time"].iloc[-1]
+
+    fidelity, fidelity_std_err = ggraph_state_fidelity(data=data_frame, graph=graph)
+
+    return [raw_rate, fidelity, fidelity_std_err]
