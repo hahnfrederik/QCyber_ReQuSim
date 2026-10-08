@@ -237,6 +237,7 @@ if __name__ == "__main__":
             (0, 2),
             (0, 3),
         ],
+        sets=[[1, 2, 3], [0]],
     )
     length_list = np.linspace(20e3, 200e3, num=8)
     max_iter = 10
