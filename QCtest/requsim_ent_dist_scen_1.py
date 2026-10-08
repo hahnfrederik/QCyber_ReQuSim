@@ -342,4 +342,16 @@ if __name__ == "__main__":
         run(length=length, graph=graph, max_iter=max_iter, params=params).data
         for length in length_list
     ]
-    print(raw_data[0])
+    result_list = [
+        stadard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
+    ]
+    results = pd.DataFrame(
+        data=result_list,
+        index=length_list,
+        columns=[
+            "raw_rate",
+            "fidelity",
+            "fideltiy_std_err",
+        ],
+    )
+    print(results)

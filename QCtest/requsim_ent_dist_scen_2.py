@@ -13,6 +13,7 @@ from requsim.libs.aux_functions import distance
 from requsim.tools.protocol import Protocol
 from requsim.noise import NoiseChannel, NoiseModel
 from requsim.events import TCP_Purifying_Event_graph
+from requsim.tools.evaluation import standard_graph_state_evaluation
 import pandas as pd
 
 # some constants
@@ -41,16 +42,69 @@ def density_from_graph(adj_matrix):
     return (1 / 2**N) * U_g @ rho @ U_g
 
 
+def CZ(n, m, N):
+    """gives the N-qubit CZ unitary acting on n-th and m-th qubit"""
+    # construct unitary
+    if n == m:
+        raise ValueError("Nonsensical Input: CZ acts on two qubits")
+    a = np.array([[1]])
+    b = np.array([[1]])
+    for i in range(N):
+        if i == n:
+            a = mat.tensor(a, mat.z0 @ mat.H(mat.z0))
+            b = mat.tensor(b, mat.z1 @ mat.H(mat.z1))
+        elif i == m:
+            a = mat.tensor(a, mat.I(2))
+            b = mat.tensor(b, mat.Z)
+        else:
+            a = mat.tensor(a, mat.I(2))
+            b = mat.tensor(b, mat.I(2))
+    return a + b
+
+
+def graph_state(N, E):
+    """Return the graph state in the computational basis.
+
+    Parameters
+    ----------
+    graph : nx.Graph
+        The graph describing the graph state.
+
+    Returns
+    -------
+    np.ndarray
+        A column-vector of the graph state given in the computational basis.
+        shape = (2**N, 1)
+
+    """
+    aux = [mat.x0] * N
+    psi = mat.tensor(*aux)
+    for edge in E:
+        psi = CZ(edge[0], edge[1], N) @ psi
+    return psi
+
+
 class GraphsReq(gg.Graph):
 
     def __init__(self, N, E, sets=[]):
         super().__init__(N, E, sets)
         self._rho = density_from_graph(self.adj)
-        self._rho_graph = transform_matrix(self.N, self.rho)
+        self._psi = graph_state(N, E)
+        # t_matrix = transform_matrix(self.N, self.psi)
+        # self._rho_graph = (t_matrix @ self.rho) @ mat.H(t_matrix)
+        self._rho_graph = self.psi @ mat.H(self.psi)
 
     @property
     def rho(self):
         return self._rho
+
+    @property
+    def rho_graph(self):
+        return self._rho_graph
+
+    @property
+    def psi(self):
+        return self._psi
 
 
 stationN = 4
@@ -116,7 +170,7 @@ def scanario_1_3():
 # the graph should be of type GraphsReq
 
 
-def transform_matrix(N, comp_dens):
+def transform_matrix(N, comp_dens):  # only works if comp_dens is pure state vector
     my_tuple = ()
     for i in range(2**N):
         operator = np.array([[1]])
@@ -125,6 +179,7 @@ def transform_matrix(N, comp_dens):
                 operator = mat.tensor(operator, mat.Z)
             else:
                 operator = mat.tensor(operator, mat.I(2))
+        print(operator.shape)
         my_tuple += (np.dot(operator, comp_dens),)
     return mat.H(np.hstack(my_tuple))
 
@@ -351,4 +406,17 @@ if __name__ == "__main__":
         run(length=length, graph=graph, max_iter=max_iter, params=params).data
         for length in length_list
     ]
-    print(raw_data[0])
+    results_list = [
+        standard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
+    ]
+
+    results = pd.DataFrame(
+        data=results_list,
+        index=length_list,
+        columns=[
+            "raw_rate",
+            "fidelity",
+            "fidelity_std_err",
+        ],
+    )
+    print(results)
