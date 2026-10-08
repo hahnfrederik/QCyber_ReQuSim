@@ -130,7 +130,7 @@ class MultiSource(Source):
 
         # if 2 just use generated_pair and return
         if N == 2:
-            return super().generate_pair(self, initial_state)
+            return super().generate_pair(initial_state)
         # else do for loop
         station = None
         qubits = []
