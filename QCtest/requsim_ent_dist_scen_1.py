@@ -1,4 +1,5 @@
 import graphepp as gg
+from GraphsReq import GraphsReq
 import numpy as np
 from requsim.world import World
 from requsim.quantum_objects import (
@@ -11,96 +12,9 @@ from requsim.quantum_objects import (
 import requsim.libs.matrix as mat
 from requsim.libs.aux_functions import distance
 from requsim.tools.protocol import Protocol
+from requsim.tools.evaluation import standard_graph_state_evaluation
 from requsim.noise import NoiseChannel, NoiseModel
 import pandas as pd
-
-# some constants
-C = 2e8
-P_LINK = 0.80
-L_ATT = 22e3
-
-
-# extending graph class with degree matrix and calculating laplacian and density matrix of a given graph
-def int_to_bin(x, bits):
-    return np.array([int(i) for i in bin(x)[2:].zfill(bits)])
-
-
-int_bin = np.vectorize(int_to_bin, otypes=[np.ndarray])
-
-
-def density_from_graph(adj_matrix):
-    N = adj_matrix.shape[0]
-    rho = np.ones((2**N, 2**N), dtype=np.complex64)
-    # create 2**N possibilities in computational basis
-    bins = np.arange(2**N)
-    bins = int_bin(bins, N)
-    bins = np.stack(bins)
-    phases = (0.5 * np.diag(bins @ adj_matrix @ np.transpose(bins))) % 2
-    U_g = np.diag(np.pow(-1, phases))
-    return (1 / 2**N) * U_g @ rho @ U_g
-
-
-class GraphsReq(gg.Graph):
-
-    def __init__(self, N, E, sets=[]):
-        super().__init__(N, E, sets)
-        self._rho = density_from_graph(self.adj)
-
-    @property
-    def rho(self):
-        return self._rho
-
-
-stationN = 4
-world = World()
-
-# +1 points, so that there is no overlap
-radiants = np.linspace(0, 2 * np.pi, stationN + 1)
-
-
-def state_generation_ghz(source):
-    ghz_state = mat.ghz(stationN) @ mat.H(mat.ghz(stationN))
-    return ghz_state
-
-
-def time_distribution_scenario_1_1(
-    source,
-):  # we generalize here by using the longest distance for all
-    comm_distance = max(
-        [distance(source, t_station) for t_station in source.target_stations]
-    )
-    trial_time = 2 * comm_distance / C
-    eta = P_LINK * np.exp((-1) * comm_distance / L_ATT)
-    num_trials = np.random.geometric(eta)
-    time_taken = num_trials * trial_time
-    return time_taken
-
-
-# different distribution choices
-
-
-def scenario_1_1(source_main):
-    # in this scanario, we purify the state before (increase the fidelity locally at the source)
-    source_main.schedule_event()
-    world.print_status()
-    while world.event_queue.next_event is not None:
-        world.event_queue.resolve_next_event()
-
-
-def scenario_1_2(source_main):
-    source_main.schedule_event()
-    source_main.schedule_event()
-
-    world.print_status()
-    while world.event_queue.next_event is not None:
-        world.event_queue.resolve_next_event()
-        world.print_status()
-
-
-def scanario_1_3():
-    bell_sources = []
-    current_message = None
-    return
 
 
 # two different TCP implementations. One based on graph state basis and on ein the computational basis
@@ -112,19 +26,6 @@ def scanario_1_3():
 
 
 # the graph should be of type GraphsReq
-
-
-def transform_matrix(N, comp_dens):
-    my_tuple = ()
-    for i in range(2**N):
-        operator = np.array([[1]])
-        for n in range(N):
-            if i & (1 << ((N - 1) - n)):
-                operator = mat.tensor(operator, mat.Z)
-            else:
-                operator = mat.tensor(operator, mat.I(2))
-        my_tuple += (np.dot(operator, comp_dens),)
-    return mat.H(np.hstack(my_tuple))
 
 
 class TCP_graph_protocol_scenario_1(Protocol):
@@ -143,7 +44,6 @@ class TCP_graph_protocol_scenario_1(Protocol):
         self.state_list = []
         self.communication_speed = communication_speed
         self.graph = graph
-        self.Transform_graph = transform_matrix(self.graph.N, self.graph.rho)
         super().__init__(world=world)
 
     @property
@@ -291,6 +191,8 @@ def run(length, max_iter, graph, params):
     world = World()
     # creating stations
 
+    radiants = np.linspace(0, 2 * np.pi, graph.N + 1)
+
     stations = []
     for i in range(graph.N):
         station = Station(
@@ -343,7 +245,7 @@ if __name__ == "__main__":
         for length in length_list
     ]
     result_list = [
-        stadard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
+        standard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
     ]
     results = pd.DataFrame(
         data=result_list,
