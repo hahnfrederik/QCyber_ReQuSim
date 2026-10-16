@@ -217,7 +217,7 @@ def run(w_noise, mem_noise, max_iter, graph, params):
             position=np.array(
                 [LENGTH * np.cos(radiants[i]), LENGTH * np.sin(radiants[i])]
             ),
-            memory_noise=construct_dephasing_noise_channel(mem_noise),
+            memory_noise=None,
         )
         stations += [station]
 
@@ -258,8 +258,8 @@ if __name__ == "__main__":
         ],
         sets=[[1, 2, 3], [0]],
     )
-    white_noise_list = np.linspace(0, 1, num=15)
-    mem_noise_list = np.linspace(200e-3, 200e-2, num=15)
+    white_noise_list = np.linspace(0, 1, num=10)
+    mem_noise_list = np.linspace(200e-3, 200e-2, num=10)
     max_iter = 10
     raw_data = [
         run(
@@ -269,8 +269,8 @@ if __name__ == "__main__":
             max_iter=max_iter,
             params=params,
         ).data
-        for w_noise in white_noise_list
         for mem_noise in mem_noise_list
+        for w_noise in white_noise_list
     ]
     result_list = [
         standard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
@@ -288,8 +288,9 @@ if __name__ == "__main__":
         ],
     )
     print(results)
+    print(results.loc[[2], ["fidelity"]])
     fig, ax = plt.subplots()
-    X, Y = np.meshgrid(mem_noise_list, white_noise_list)
+    X, Y = np.meshgrid(white_noise_list, mem_noise_list)
     ax.pcolormesh(
         X, Y, results.values[:, 1].reshape(len(mem_noise_list), len(white_noise_list))
     )
