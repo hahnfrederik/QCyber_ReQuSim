@@ -13,7 +13,9 @@ import requsim.libs.matrix as mat
 from requsim.libs.aux_functions import distance
 from requsim.tools.protocol import Protocol
 from requsim.tools.evaluation import standard_graph_state_evaluation
+from requsim.tools.noise_channels import w_noise_channel, z_noise_channel
 from requsim.noise import NoiseChannel, NoiseModel
+import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -26,6 +28,23 @@ import pandas as pd
 
 
 # the graph should be of type GraphsReq
+
+
+def construct_white_noise_channel(error_prob):
+    def white_noise_func(rho):
+        return w_noise_channel(rho=rho, alpha=error_prob)
+
+    return NoiseChannel(n_qubits=1, channel_function=white_noise_func)
+
+
+def construct_dephasing_noise_channel(dephasing_time):
+    def lambda_dp(t):
+        return (1 - np.exp(-t / dephasing_time)) / 2
+
+    def dephasing_noise_func(rho, t):
+        return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
+
+    return NoiseChannel(n_qubits=1, channel_function=dephasing_noise_func)
 
 
 class TCP_graph_protocol_scenario_1(Protocol):
@@ -144,15 +163,19 @@ class TCP_graph_protocol_scenario_1(Protocol):
 # for computational basis,...
 
 
-def run(length, max_iter, graph, params):
+def run(w_noise, mem_noise, max_iter, graph, params):
     C = params["COMMUNICATION_SPEED"]
     P_LINK = params["P_LINK"]
-    T_DP = params["T_DP"]
-    LAMBDS_MEAS = params["LAMBDA_MEAS"]
+    LENGTH = params["LENGTH"]
     L_ATT = params["L_ATT"]
 
-    def state_generation(source):
+    def state_generation(source):  # source with initial white noise
         state = graph.rho
+        w_channel = construct_white_noise_channel(
+            w_noise
+        )  # make multiple noises for asymmetric noise
+        for i in range(graph.N):
+            state = w_channel.apply_to(rho=state, qubit_indices=[i])
         comm_distance = max(
             [
                 distance(source, source.target_stations[i])
@@ -182,12 +205,6 @@ def run(length, max_iter, graph, params):
         time_taken = num_trials * trial_time
         return time_taken
 
-    def Meas_error_func(rho):
-        return LAMBDA_MEAS * rho + (1 - LAMBDA_MEAS) * mat.I(graph.N) / graph.N
-
-    Meas_noise_channel = NoiseChannel(n_qubits=2, channel_function=Meas_error_func)
-    Meas_error_model = NoiseModel(channel_before=Meas_noise_channel)
-
     world = World()
     # creating stations
 
@@ -197,7 +214,10 @@ def run(length, max_iter, graph, params):
     for i in range(graph.N):
         station = Station(
             world=world,
-            position=np.array([np.cos(radiants[i]), np.sin(radiants[i])]),
+            position=np.array(
+                [LENGTH * np.cos(radiants[i]), LENGTH * np.sin(radiants[i])]
+            ),
+            memory_noise=construct_dephasing_noise_channel(mem_noise),
         )
         stations += [station]
 
@@ -224,8 +244,7 @@ def run(length, max_iter, graph, params):
 if __name__ == "__main__":
     params = {
         "P_LINK": 0.80,
-        "T_DP": 100e-3,
-        "LAMBDA_MEAS": 0.99,
+        "LENGTH": 20e3,
         "COMMUNICATION_SPEED": 2e8,
         "L_ATT": 22e3,
     }
@@ -239,18 +258,29 @@ if __name__ == "__main__":
         ],
         sets=[[1, 2, 3], [0]],
     )
-    length_list = np.linspace(20e3, 200e3, num=8)
+    white_noise_list = np.linspace(0, 1, num=15)
+    mem_noise_list = np.linspace(200e-3, 200e-2, num=15)
     max_iter = 10
     raw_data = [
-        run(length=length, graph=graph, max_iter=max_iter, params=params).data
-        for length in length_list
+        run(
+            w_noise=w_noise,
+            mem_noise=mem_noise,
+            graph=graph,
+            max_iter=max_iter,
+            params=params,
+        ).data
+        for w_noise in white_noise_list
+        for mem_noise in mem_noise_list
     ]
     result_list = [
         standard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
     ]
+    index = pd.MultiIndex.from_product(
+        [mem_noise_list, white_noise_list], names=["mem_noise", "white_noise"]
+    )
     results = pd.DataFrame(
         data=result_list,
-        index=length_list,
+        index=index,
         columns=[
             "raw_rate",
             "fidelity",
@@ -258,3 +288,9 @@ if __name__ == "__main__":
         ],
     )
     print(results)
+    fig, ax = plt.subplots()
+    X, Y = np.meshgrid(mem_noise_list, white_noise_list)
+    ax.pcolormesh(
+        X, Y, results.values[:, 1].reshape(len(mem_noise_list), len(white_noise_list))
+    )
+    plt.savefig("../images/pcolormesh.png")
