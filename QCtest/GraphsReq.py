@@ -75,7 +75,6 @@ def transform_matrix(N, psi):  # only works for pure graph state vector
                 operator = mat.tensor(operator, mat.Z)
             else:
                 operator = mat.tensor(operator, mat.I(2))
-        print(operator.shape)
         my_tuple += (np.dot(operator, psi),)
     return mat.H(np.hstack(my_tuple))
 
