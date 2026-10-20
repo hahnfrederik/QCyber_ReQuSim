@@ -376,23 +376,29 @@ def standard_ghz_evaluation(data_frame, N=None, err_corr_ineff=1):
     ]
 
 
-def ggraph_state_fidelity(data: pd.DataFrame, graph):
+def graph_state_fidelity(data: pd.DataFrame, graph, option):
     """Calculate the statistical fidelity of the raph states"""
+    assert option == "graph" or option == "comp"
     states = data["state"]
 
     """only necessary if both rho and sigma are not pure
     sqrt_graph = linalg.sqrtm(graph.rho_graph)
     sqrt_graph = np.real_if_close(sqrt_graph)
     """
-    fidelities = np.real_if_close(
-        [mat.H(graph.psi) @ state @ graph.psi for state in states]
-    )
+    if option == "comp":
+        fidelities = np.real_if_close(
+            [mat.H(graph.psi) @ state @ graph.psi for state in states]
+        )
+    else:
+        fidelities = np.real_if_close(
+            [mat.H(graph.psi_rho) @ state @ graph.psi_rho for state in states]
+        )
     fidelity = np.mean(fidelities)
     fidelity_std_err = np.std(fidelities) / np.sqrt(len(fidelities))
     return fidelity, fidelity_std_err
 
 
-def standard_graph_state_evaluation(data_frame, graph, err_corr_ineff=1):
+def standard_graph_state_evaluation(data_frame, graph, option, err_corr_ineff=1):
     """Calculate fidelities and key rates from times and states.
 
     Parameters
@@ -418,6 +424,8 @@ def standard_graph_state_evaluation(data_frame, graph, err_corr_ineff=1):
 
     raw_rate = len(data_frame["time"]) / data_frame["time"].iloc[-1]
 
-    fidelity, fidelity_std_err = ggraph_state_fidelity(data=data_frame, graph=graph)
+    fidelity, fidelity_std_err = graph_state_fidelity(
+        data=data_frame, graph=graph, option=option
+    )
 
     return [raw_rate, fidelity, fidelity_std_err]
