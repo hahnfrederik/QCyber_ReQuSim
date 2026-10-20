@@ -1060,6 +1060,45 @@ class MeasurementEvent(Event):
         }
 
 
+from functools import lru_cache
+
+
+@lru_cache(maxsize=None)  # this will be getting called a lot with the same input
+def _mask_b(j, graph):
+    """Spread a bit string on set b to the whole bitstring.
+
+    Takes an int representing a bit string of length size of set b
+    and spreads it to a length graph.N bit string with the bits set at the
+    correct places.
+
+    Example: graph.N = 4, graph.b = [1, 3], j=3 (bitstring "11")
+             will return 10 (bitstring "0101")
+
+    Example: graph.N = 4, graph.b = [1, 3], j=1 (bitstring "01")
+             will return 2 (bitstring "0001")
+
+    Parameters
+    ----------
+    j : int
+        Representing a bit string of length len(graph.b).
+    graph : Graph
+        The graph containing information about the set.
+
+    Returns
+    -------
+    int
+        Representing a bit string of length graph.N, i.e. `j` spread out over
+        the appropriate positions in the bit string.
+
+    """
+    m = ["0"] * graph.N
+    short_string = format(j, "0" + str(len(graph.b)) + "b")
+    for bit, idx in zip(short_string, graph.b):
+        m[idx] = bit
+    long_string = "".join(m)
+    return int(long_string, base=2)
+
+
 def p1_var(rho, sigma, graph):
     mu = np.zeros(len(rho))
     for i in range(2**graph.N):
@@ -1076,9 +1115,12 @@ def p1_var(rho, sigma, graph):
 
 class TCP_Purifying_Event_graph(Event):
 
-    def __init__(self, time, multiqubits, graph, callback_functions=None):
+    def __init__(
+        self, time, multiqubits, graph, communication_time, callback_functions=None
+    ):
         self.multiqubits = multiqubits
         self.graph = graph
+        self.communication_time = communication_time
         super().__init__(
             time=time,
             required_objects=self.multiqubits
@@ -1090,8 +1132,8 @@ class TCP_Purifying_Event_graph(Event):
         return (
             self.__class__.__name__
             + f"(time={self.time}, multiqubits={self.multiqubits}), "
-            + f"stations={self.stations}, "
-            + f"ccallback_functions={self.callback_functions}"
+            + f"communication_time={self.communication_time}, "
+            + f"ccallback_functions={self._callback_functions}"
         )
 
     def __str__(self):
@@ -1112,20 +1154,20 @@ class TCP_Purifying_Event_graph(Event):
         dict
             the return_dict of this event is updated with this.
         """
-        for multiqubit in self.multitubits:
+        for multiqubit in self.multiqubits:
             multiqubit.update_time()
         assert len(self.multiqubits) == 2  # should be two copies we purify
 
         rho = self.multiqubits[0].state
         sigma = self.multiqubits[1].state
-
-        rho = np.diag(self.U @ rho @ mat.H(self.U))
-        p_suc, output_state = p1_var(rho, sigma)
+        rho = np.diag(self.graph.t_matrix @ rho @ mat.H(self.graph.t_matrix))
+        sigma = np.diag(self.graph.t_matrix @ sigma @ mat.H(self.graph.t_matrix))
+        p_suc, output_state = p1_var(rho, sigma, self.graph)
         output = self.multiqubits[0]
         output.state = output_state
         output.is_blocked = True
-        for i in range(len(stations)):
-            output.qubits[i].is_blocked == True
+        for qbit in output.qubits:
+            qbit.is_blocked = True
         for multiqubit in self.multiqubits[1:]:
             for qb in multiqubit.qubits:
                 qb.destroy()
@@ -1144,7 +1186,7 @@ class TCP_Purifying_Event_graph(Event):
             def destroy_function():
                 output.destroy()
                 for qubit in output.qubits:
-                    qubit.destory()
+                    qubit.destroy()
                 return {
                     "destroyed_objects": [output] + [qubit for qubit in output.qubits]
                 }
@@ -1152,11 +1194,12 @@ class TCP_Purifying_Event_graph(Event):
             destroy_event = GenericEvent(
                 time=self.time + self.communication_time,
                 resolve_function=destroy_function,
-                required_objects=[output_pair],
+                required_objects=[output],
                 priority=0,
                 ignore_blocked=True,
             )
-            return {"output_pair": output, "is_successful": False}
+            self.event_queue.add_event(destroy_event)
+            return {"output_multiqubit": output, "is_successful": False}
 
 
 # from here is Jankas part, combining bells to ghz
