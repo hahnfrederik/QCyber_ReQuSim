@@ -234,10 +234,8 @@ def run(w_noise, mem_noise, max_iter, graph, params):
 
     current_message = None
     while len(protocol.time_list) < max_iter:
-        # world.print_status()
         protocol.check(message=current_message)
         current_message = world.event_queue.resolve_next_event()
-
     return protocol
 
 
@@ -248,7 +246,6 @@ if __name__ == "__main__":
         "COMMUNICATION_SPEED": 2e8,
         "L_ATT": 22e3,
     }
-
     graph = GraphsReq(
         N=4,
         E=[
@@ -273,7 +270,8 @@ if __name__ == "__main__":
         for w_noise in white_noise_list
     ]
     result_list = [
-        standard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
+        standard_graph_state_evaluation(data_frame=df, graph=graph, option="comp")
+        for df in raw_data
     ]
     index = pd.MultiIndex.from_product(
         [mem_noise_list, white_noise_list], names=["mem_noise", "white_noise"]
