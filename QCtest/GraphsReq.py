@@ -83,11 +83,15 @@ class GraphsReq(gg.Graph):
 
     def __init__(self, N, E, sets=[]):
         super().__init__(N, E, sets)
-        self._rho = density_from_graph(self.adj)
+        # self._rho = density_from_graph(self.adj)
         self._psi = graph_state(N, E)
         self._t_matrix = transform_matrix(self.N, self.psi)
         # self._rho_graph = (t_matrix @ self.rho) @ mat.H(t_matrix)
-        self._rho_graph = self.psi @ mat.H(self.psi)
+        self._rho = self.psi @ mat.H(self.psi)
+        psi_graph = self.t_matrix @ self.psi
+        psi_graph[np.isclose(psi_graph, 0.0)] = 0
+        self._psi_graph = psi_graph
+        self._rho_graph = self.psi_graph @ mat.H(self.psi_graph)
 
     @property
     def rho(self):
@@ -104,3 +108,7 @@ class GraphsReq(gg.Graph):
     @property
     def t_matrix(self):
         return self._t_matrix
+
+    @property
+    def psi_graph(self):
+        return self._psi_graph
