@@ -391,7 +391,8 @@ def graph_state_fidelity(data: pd.DataFrame, graph, option):
         )
     else:
         fidelities = np.real_if_close(
-            [mat.H(graph.psi_rho) @ state @ graph.psi_rho for state in states]
+            # [mat.H(graph.psi_graph) @ np.diag(state) @ graph.psi_graph for state in states]
+            [state[0] for state in states]
         )
     fidelity = np.mean(fidelities)
     fidelity_std_err = np.std(fidelities) / np.sqrt(len(fidelities))

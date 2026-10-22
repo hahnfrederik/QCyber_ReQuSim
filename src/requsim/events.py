@@ -1064,33 +1064,17 @@ from functools import lru_cache
 
 
 @lru_cache(maxsize=None)  # this will be getting called a lot with the same input
+def _mask_a(j, graph):
+    m = ["0"] * graph.N
+    short_string = format(j, "0" + str(len(graph.a)) + "b")
+    for bit, idx in zip(short_string, graph.a):
+        m[idx] = bit
+    long_string = "".join(m)
+    return int(long_string, base=2)
+
+
+@lru_cache(maxsize=None)  # this will be getting called a lot with the same input
 def _mask_b(j, graph):
-    """Spread a bit string on set b to the whole bitstring.
-
-    Takes an int representing a bit string of length size of set b
-    and spreads it to a length graph.N bit string with the bits set at the
-    correct places.
-
-    Example: graph.N = 4, graph.b = [1, 3], j=3 (bitstring "11")
-             will return 10 (bitstring "0101")
-
-    Example: graph.N = 4, graph.b = [1, 3], j=1 (bitstring "01")
-             will return 2 (bitstring "0001")
-
-    Parameters
-    ----------
-    j : int
-        Representing a bit string of length len(graph.b).
-    graph : Graph
-        The graph containing information about the set.
-
-    Returns
-    -------
-    int
-        Representing a bit string of length graph.N, i.e. `j` spread out over
-        the appropriate positions in the bit string.
-
-    """
     m = ["0"] * graph.N
     short_string = format(j, "0" + str(len(graph.b)) + "b")
     for bit, idx in zip(short_string, graph.b):
@@ -1113,11 +1097,33 @@ def p1_var(rho, sigma, graph):
     return prob, mu / prob
 
 
+def p2_var(rho, sigma, graph):
+    mu = np.zeros(len(rho))
+    for i in range(2**graph.N):
+        j = i & (_mask_a((1 << len(graph.a)) - 1, graph))
+        for k in range(2 ** len(graph.a)):
+            m = _mask_a(k, graph)
+            mu[i] += rho[(i ^ j) ^ m] * sigma[i ^ m]
+    if np.any(mu < 0):
+        mu = np.copy(mu)
+        mu[mu < 0] = 0
+    prob = np.sum(mu)
+    return prob, mu / prob
+
+
 class TCP_Purifying_Event_graph(Event):
 
     def __init__(
-        self, time, multiqubits, graph, communication_time, callback_functions=None
+        self,
+        time,
+        multiqubits,
+        graph,
+        communication_time,
+        callback_functions=None,
+        option="P1",
     ):
+        assert option == "P1" or option == "P2"
+        self.option = option
         self.multiqubits = multiqubits
         self.graph = graph
         self.communication_time = communication_time
@@ -1157,14 +1163,18 @@ class TCP_Purifying_Event_graph(Event):
         for multiqubit in self.multiqubits:
             multiqubit.update_time()
         assert len(self.multiqubits) == 2  # should be two copies we purify
-
         rho = self.multiqubits[0].state
         sigma = self.multiqubits[1].state
-        rho = np.diag(self.graph.t_matrix @ rho @ mat.H(self.graph.t_matrix))
-        sigma = np.diag(self.graph.t_matrix @ sigma @ mat.H(self.graph.t_matrix))
-        p_suc, output_state = p1_var(rho, sigma, self.graph)
+        rho = self.graph.t_matrix @ rho @ mat.H(self.graph.t_matrix)
+        sigma = self.graph.t_matrix @ sigma @ mat.H(self.graph.t_matrix)
+        if self.option == "P1":
+            p_suc, output_state = p1_var(np.diag(rho), np.diag(sigma), self.graph)
+        else:
+            p_suc, output_state = p2_var(np.diag(rho), np.diag(sigma), self.graph)
         output = self.multiqubits[0]
-        output.state = output_state
+        output.state = (
+            mat.H(self.graph.t_matrix) @ np.diag(output_state) @ self.graph.t_matrix
+        )
         output.is_blocked = True
         for qbit in output.qubits:
             qbit.is_blocked = True
