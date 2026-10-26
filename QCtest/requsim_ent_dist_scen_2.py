@@ -13,14 +13,33 @@ import requsim.libs.matrix as mat
 from requsim.libs.aux_functions import distance
 from requsim.tools.protocol import Protocol
 from requsim.noise import NoiseChannel, NoiseModel
-from requsim.events import TCP_Purifying_Event_graph
+from requsim.events import TCP_Purifying_Event_graph, MultiSourceEvent
 from requsim.tools.evaluation import standard_graph_state_evaluation
 import pandas as pd
+import matplotlib.pyplot as plt
+from requsim.tools.noise_channels import w_noise_channel, z_noise_channel
+
+
+def construct_white_noise_channel(error_prob):
+    def white_noise_func(rho):
+        return w_noise_channel(rho=rho, alpha=error_prob)
+
+    return NoiseChannel(n_qubits=1, channel_function=white_noise_func)
+
+
+def construct_dephasing_noise_channel(dephasing_time):
+    def lambda_dp(t):
+        return (1 - np.exp(-t / dephasing_time)) / 2
+
+    def dephasing_noise_func(rho, t):
+        return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
+
+    return NoiseChannel(n_qubits=1, channel_function=dephasing_noise_func)
 
 
 class TCP_graph_protocol_scenario_2(Protocol):
 
-    def __init__(self, graph, world=None, communication_speed=None):
+    def __init__(self, graph, world=None, communication_speed=None, max_distance=None):
         if world is not None or communication_speed is not None:
             warn(
                 "Initializing Protocol with setup-dependent arguments (like world) is no longer recommended "
@@ -33,6 +52,7 @@ class TCP_graph_protocol_scenario_2(Protocol):
         self.time_list = []
         self.state_list = []
         self.communication_speed = communication_speed
+        self.max_distance = max_distance
         self.graph = graph
         super().__init__(world=world)
 
@@ -40,7 +60,7 @@ class TCP_graph_protocol_scenario_2(Protocol):
     def data(self):
         return pd.DataFrame({"time": self.time_list, "state": self.state_list})
 
-    def setup(self, world=None, communication_speed=None):
+    def setup(self, world=None, communication_speed=None, max_distance=None):
         """
         create the sources and so on
 
@@ -67,6 +87,14 @@ class TCP_graph_protocol_scenario_2(Protocol):
                 pass
         else:
             self.communication_speed = communication_speed
+
+        if max_distance is None:
+            raise ValueError(
+                "max_distance is not specified. "
+                + "Must be provided as part of the setup method"
+            )
+        else:
+            self.max_distance = max_distance
 
         stations = self.world.world_objects["Station"]
         assert len(stations) == self.graph.N
@@ -118,6 +146,25 @@ class TCP_graph_protocol_scenario_2(Protocol):
         num_graph = len(graph_groups)
         num_graph_scheduled = len(self._graph_groups_scheduled())
         # if no scheduled event and no ghz pair sent then send
+        if message is not None:
+            try:
+                if message["is_successful"] is True:
+                    return
+                else:
+                    return
+            except KeyError:
+                pass
+            try:
+                if message["unblocked_objects"] is not None:
+                    for g in graph_groups:  # assume there is only one graph state
+                        self._eval_graph_state(g)
+                        for qbit in g.qubits:
+                            qbit.destroy()
+                    g.destroy()
+            except KeyError:
+                # do nothing
+                pass
+
         if (
             num_graph + num_graph_scheduled < 2
         ):  # we need two copies for one TCP protocol execution
@@ -129,28 +176,24 @@ class TCP_graph_protocol_scenario_2(Protocol):
                 time=self.world.event_queue.current_time,
                 multiqubits=graph_groups,
                 graph=self.graph,
+                communication_time=self.max_distance / self.communication_speed,
             )
             self.world.event_queue.add_event(tcp_event)
 
-            for g in graph_groups:
-                self._eval_graph_state(g)
-                for qubit in g.qubits:
-                    qubit.destroy()
-                g.destroy()
 
-
-# for computational basis,...
-
-
-def run(length, max_iter, graph, params):
+def run(w_noise, mem_noise, max_iter, graph, params):
     C = params["COMMUNICATION_SPEED"]
     P_LINK = params["P_LINK"]
-    T_DP = params["T_DP"]
-    LAMBDS_MEAS = params["LAMBDA_MEAS"]
+    LENGTH = params["LENGTH"]
     L_ATT = params["L_ATT"]
 
     def state_generation(source):
         state = graph.rho
+        w_channel = construct_white_noise_channel(w_noise)
+        for i in range(graph.N):
+            state = w_channel.apply_to(rho=state, qubit_indices=[i])
+
+        # storage time for communication
         comm_distance = max(
             [
                 distance(source, source.target_stations[i])
@@ -175,16 +218,10 @@ def run(length, max_iter, graph, params):
         trial_time = 2 * comm_distance / C
         eta = P_LINK * np.exp(-comm_distance / L_ATT)
         num_trials = np.random.geometric(
-            eta
+            eta**4
         )  # change here in terms of how many stations we have
         time_taken = num_trials * trial_time
         return time_taken
-
-    def Meas_error_func(rho):
-        return LAMBDA_MEAS * rho + (1 - LAMBDA_MEAS) * mat.I(graph.N) / graph.N
-
-    Meas_noise_channel = NoiseChannel(n_qubits=2, channel_function=Meas_error_func)
-    Meas_error_model = NoiseModel(channel_before=Meas_noise_channel)
 
     world = World()
     # creating stations
@@ -193,7 +230,11 @@ def run(length, max_iter, graph, params):
     for i in range(graph.N):
         station = Station(
             world=world,
-            position=np.array([np.cos(radiants[i]), np.sin(radiants[i])]),
+            position=np.array(
+                [LENGTH * np.cos(radiants[i]), LENGTH * np.sin(radiants[i])]
+            ),
+            memory_noise=construct_dephasing_noise_channel(mem_noise),
+            # memory_noise = None
         )
         stations += [station]
 
@@ -206,11 +247,10 @@ def run(length, max_iter, graph, params):
     )
 
     protocol = TCP_graph_protocol_scenario_2(graph)
-    protocol.setup(world=world, communication_speed=C)
+    protocol.setup(world=world, communication_speed=C, max_distance=LENGTH)
 
     current_message = None
     while len(protocol.time_list) < max_iter:
-        # world.print_status()
         protocol.check(message=current_message)
         current_message = world.event_queue.resolve_next_event()
 
@@ -220,8 +260,7 @@ def run(length, max_iter, graph, params):
 if __name__ == "__main__":
     params = {
         "P_LINK": 0.80,
-        "T_DP": 100e-3,
-        "LAMBDA_MEAS": 0.99,
+        "LENGTH": 20e3,
         "COMMUNICATION_SPEED": 2e8,
         "L_ATT": 22e3,
     }
@@ -235,19 +274,33 @@ if __name__ == "__main__":
         ],
         sets=[[0], [1, 2, 3]],
     )
-    length_list = np.linspace(20e3, 200e3, num=8)
+    # white_noise_list = np.linspace(0.6, 1,num=2)
+    # mem_noise_list = np.linspace(10e-2, 2, num=2)
+    white_noise_list = [1]
+    mem_noise_list = [1]
     max_iter = 10
     raw_data = [
-        run(length=length, graph=graph, max_iter=max_iter, params=params).data
-        for length in length_list
+        run(
+            w_noise=w_noise,
+            mem_noise=mem_noise,
+            graph=graph,
+            max_iter=max_iter,
+            params=params,
+        ).data
+        for mem_noise in mem_noise_list
+        for w_noise in white_noise_list
     ]
     results_list = [
-        standard_graph_state_evaluation(data_frame=df, graph=graph) for df in raw_data
+        standard_graph_state_evaluation(data_frame=df, graph=graph, option="comp")
+        for df in raw_data
     ]
+    index = pd.MultiIndex.from_product(
+        [mem_noise_list, white_noise_list], names=["mem_noise", "white_noise"]
+    )
 
     results = pd.DataFrame(
         data=results_list,
-        index=length_list,
+        index=index,
         columns=[
             "raw_rate",
             "fidelity",
@@ -255,3 +308,9 @@ if __name__ == "__main__":
         ],
     )
     print(results)
+    fig, ax = plt.subplots()
+    X, Y = np.meshgrid(white_noise_list, mem_noise_list)
+    ax.pcolormesh(
+        X, Y, results.values[:, 1].reshape(len(mem_noise_list), len(white_noise_list))
+    )
+    # plt.savefig("../images/pcolormesh2.png")

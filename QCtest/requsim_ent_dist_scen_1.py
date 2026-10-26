@@ -163,7 +163,7 @@ class TCP_graph_protocol_scenario_1(Protocol):
 # for computational basis,...
 
 
-def run(w_noise, mem_noise, max_iter, graph, params):
+def run(w_noise, max_iter, graph, params):
     C = params["COMMUNICATION_SPEED"]
     P_LINK = params["P_LINK"]
     LENGTH = params["LENGTH"]
@@ -176,18 +176,6 @@ def run(w_noise, mem_noise, max_iter, graph, params):
         )  # make multiple noises for asymmetric noise
         for i in range(graph.N):
             state = w_channel.apply_to(rho=state, qubit_indices=[i])
-        comm_distance = max(
-            [
-                distance(source, source.target_stations[i])
-                for i in range(len(source.target_stations))
-            ]
-        )
-        storage_time = 2 * comm_distance / C
-        for idx, station in enumerate(source.target_stations):
-            if station.memory_noise is not None:
-                state = station.memory_noise.apply_to(
-                    rho=state, qubit_indices=[idx], t=storage_time
-                )
         return state
 
     def time_distribution(source):
@@ -200,7 +188,7 @@ def run(w_noise, mem_noise, max_iter, graph, params):
         trial_time = 2 * comm_distance / C
         eta = P_LINK * np.exp(-comm_distance / L_ATT)
         num_trials = np.random.geometric(
-            eta
+            eta**4
         )  # change here in terms of how many stations we have
         time_taken = num_trials * trial_time
         return time_taken
@@ -256,40 +244,33 @@ if __name__ == "__main__":
         sets=[[1, 2, 3], [0]],
     )
     white_noise_list = np.linspace(0, 1, num=10)
-    mem_noise_list = np.linspace(200e-3, 200e-2, num=10)
     max_iter = 10
     raw_data = [
         run(
             w_noise=w_noise,
-            mem_noise=mem_noise,
             graph=graph,
             max_iter=max_iter,
             params=params,
         ).data
-        for mem_noise in mem_noise_list
         for w_noise in white_noise_list
     ]
     result_list = [
         standard_graph_state_evaluation(data_frame=df, graph=graph, option="comp")
         for df in raw_data
     ]
-    index = pd.MultiIndex.from_product(
-        [mem_noise_list, white_noise_list], names=["mem_noise", "white_noise"]
-    )
+
     results = pd.DataFrame(
         data=result_list,
-        index=index,
+        index=white_noise_list,
         columns=[
             "raw_rate",
             "fidelity",
             "fideltiy_std_err",
         ],
     )
-    print(results)
-    print(results.loc[[2], ["fidelity"]])
+
     fig, ax = plt.subplots()
-    X, Y = np.meshgrid(white_noise_list, mem_noise_list)
-    ax.pcolormesh(
-        X, Y, results.values[:, 1].reshape(len(mem_noise_list), len(white_noise_list))
-    )
-    plt.savefig("../images/pcolormesh.png")
+    # ax.pcolormesh(
+    #    X, Y, results.values[:, 1].reshape(len(mem_noise_list), len(white_noise_list))
+    # )
+    # plt.savefig("../images/pcolormesh.png")
