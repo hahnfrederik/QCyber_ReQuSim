@@ -134,10 +134,12 @@ for g_size in N_LIST:
             results_1 = results_1.reset_index().rename(columns={"index": "white_noise"})
             results_1["P_LINK"] = P_LINK
             results_1["LENGTH"] = LENGTH
+            results_1["N"] = g_size
             results_2 = results_2.reset_index()
 
             results_2["P_LINK"] = P_LINK
             results_2["LENGTH"] = LENGTH
+            results_2["N"] = g_size
 
             con = duckdb.connect("data/run_test.db")
 
