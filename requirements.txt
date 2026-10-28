@@ -38,7 +38,6 @@ pytz==2025.2
 PyYAML==6.0.3
 recommonmark==0.7.1
 requests==2.32.5
--e git+ssh://git@github.com/hahnfrederik/QCyber_ReQuSim.git@87aa0209fadf1d4cf2b7a66a6ca43af8d318636e#egg=requsim
 roman-numerals==4.0.0
 roman-numerals-py==4.0.0
 scipy==1.18.1
@@ -59,3 +58,4 @@ tzdata==2025.3
 urllib3==2.6.2
 virtualenv==20.35.4
 wheel==0.45.1
+-e ./
