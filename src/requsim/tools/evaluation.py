@@ -422,11 +422,141 @@ def standard_graph_state_evaluation(data_frame, graph, option, err_corr_ineff=1)
                   standard error of the mean of key rate per time
 
     """
-
-    raw_rate = len(data_frame["time"]) / data_frame["time"].iloc[-1]
+    time_interval = data_frame["time"].iloc[-1]
+    raw_rate = len(data_frame["time"]) / time_interval
 
     fidelity, fidelity_std_err = graph_state_fidelity(
         data=data_frame, graph=graph, option=option
     )
 
-    return [raw_rate, fidelity, fidelity_std_err]
+    ex_array = calculate_qber_x_graph(data=data_frame, num_parties=graph.N)
+    ez_array = calculate_qber_z_graph(data=data_frame, num_parties=graph.N)
+
+    e_x = np.mean(ex_array)
+    e_z = np.mean(ez_array)
+    key_per_time, key_per_time_std_err = calculate_keyrate_time(
+        ez_array=ez_array,
+        ex_array=ex_array,
+        time_interval=time_interval,
+        return_std_err=True,
+    )
+
+    vote_rate = calculate_voting_rate(
+        N=graph.N, C=4, P_a=1, M=4, delta=0.038, fidelity=fidelity, rate=raw_rate
+    )
+
+    return [
+        raw_rate,
+        fidelity,
+        fidelity_std_err,
+        key_per_time,
+        key_per_time_std_err,
+        e_x,
+        e_z,
+        vote_rate,
+    ]
+
+
+def binary_entropy(p):
+    """Calculate the binary entropy.
+
+    Parameters
+    ----------
+    p : scalar
+        Must be in interval [0, 1]. Usually an error rate.
+
+    Returns
+    -------
+    scalar
+        The binary entropy of `p`.
+
+    """
+    if p == 1 or p == 0:
+        return 0
+    elif p < 0:  # can happen numerically, when it should be 0
+        return 0
+    else:
+        res = -p * np.log2(p) - (1 - p) * np.log2(1 - p)
+        if np.isnan(res):
+            warn(f"binary_entropy was called with p={p} and returned nan")
+    return res
+
+
+def calculate_qber_x_graph(data: pd.DataFrame, num_parties: int):
+    # assumes the node with multiple connections is at 0
+    # only works for star graphs
+    # span measurement operator
+    K1 = [mat.X] + [mat.Z] * (num_parties - 1)
+    X_all = mat.tensor(*K1)
+
+    states = data["state"]
+    qx_array = []
+    for state in states:
+        qx = 0.5 * (1 - np.trace(X_all @ state))
+        qx_array.append(np.real_if_close(qx))
+
+    return qx_array
+
+
+def calculate_qber_z_graph(data: pd.DataFrame, num_parties: int):
+    # assumes the node with multiple connections is at 0
+    # only works for star graphs
+    states = data["state"]
+    # compute all Z_0 Z_i operators and store them
+    operators = []
+
+    for i in range(1, num_parties):
+        ops = []
+        for j in range(num_parties):
+            if j == 0:
+                ops.append(mat.Z)
+            elif j == i:
+                ops.append(mat.X)
+            else:
+                ops.append(mat.I(2))
+        operators.append(mat.tensor(*ops))
+
+    qz_array = []
+
+    for state in states:
+        qz_values = [0.5 * (1 - np.trace(op @ state)) for op in operators]
+        qz_values = np.real_if_close(qz_values)
+        qz_array.append(np.max(qz_values))
+
+    return qz_array
+
+
+def calculate_keyrate_time(ez_array, ex_array, time_interval, return_std_err=False):
+    e_z = np.mean(ez_array)
+    e_x = np.mean(ex_array)
+    num_ghz = len(ez_array)
+    ghz_per_time = num_ghz / time_interval
+    keyrate = ghz_per_time * (1 - binary_entropy(e_x) - binary_entropy(e_z))
+    if not return_std_err:
+        return keyrate
+
+    variance_z = np.std(ez_array)
+    variance_x = np.std(ex_array)
+
+    if e_z == 0:
+        keyrate_std = ghz_per_time * np.sqrt(
+            (-np.log2(e_x) + np.log2(1 - e_x)) ** 2 * variance_x
+        )
+    else:
+        keyrate_std = ghz_per_time * np.sqrt(
+            (-np.log2(e_x) + np.log2(1 - e_x)) ** 2 * variance_x
+            + (-np.log2(e_z) + np.log2(1 - e_z)) ** 2 * variance_z
+        )
+    keyrate_std_err = keyrate_std / np.sqrt(num_ghz)
+    return keyrate, keyrate_std_err
+
+
+def calculate_voting_rate(
+    N: int, C: int, P_a: int, M: int, delta: float, fidelity, rate
+):
+    pre_thing = 1 / (N * np.log2(C) * P_a * 2**M)
+    exp = ((1 - fidelity**2) - 4 * delta) ** 2
+    exp = exp / (16 * N * (1 - fidelity**2))
+    exp = exp * -1 * 2**M
+    vote_rate = pre_thing * rate * np.exp(exp)
+    return vote_rate
