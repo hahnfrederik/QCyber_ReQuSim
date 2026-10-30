@@ -36,9 +36,9 @@ graph = GraphsReq(
     sets=[[i for i in range(1, g_size)], [0]],
 )
 
-white_noise_list = np.linspace(0.6, 1, num=20)
-mem_noise_list = np.logspace(-3, 1, num=20, base=2)
-max_iter = 10000
+white_noise_list = np.linspace(0.6, 1, num=5)
+mem_noise_list = np.logspace(-3, 1, num=5, base=2)
+max_iter = 10
 X, Y = np.meshgrid(white_noise_list, mem_noise_list)
 raw_data_1 = [
     run_1(
