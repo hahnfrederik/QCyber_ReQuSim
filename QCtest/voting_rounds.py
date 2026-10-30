@@ -4,7 +4,8 @@ The Voting protocol class which takes over all the interactions with a Quantum N
 
 from requsim.tools.protocol import Protocol
 from requsim.libs import matrix as mat
-from requsim.events import MeasurementEvent
+from requsim.events import MeasurementEvent, MultiSourceEvent
+import pandas as pd
 
 
 class VotingProtocol(Protocol):
@@ -14,7 +15,7 @@ class VotingProtocol(Protocol):
         super().__init__(world=None)
 
     @property
-    def data():
+    def data(self):
         return pd.Dataframe({"time": self.time_list, "state": self.state_list})
 
     def setup(self, world=None, communication_speed=None, rng=None):
@@ -97,7 +98,7 @@ class VotingProtocol(Protocol):
         checks status of world and does events and calculations based upon that
         """
 
-        # 2 different scanrios
+        # 2 different scenarios
         # send GHZ
         if message["event"] == "send":
             # multiqubit = self._get_multiqubit()
@@ -106,10 +107,8 @@ class VotingProtocol(Protocol):
             self.source.schedule_event()
         # measure GHZ (in X basis)
         if message["event"] == "measure":
-            current_N = len(self.world.world_objects["Qubit"])
-            multiqubit = self._get_multiqubit(current_N)
             base = [[mat.x0], [mat.x1]]
-            for i, actor in enumerate(self.actors):
+            for actor in self.actors:
                 measure_event = MeasurementEvent(
                     time=self.world.event_queue.current_time,
                     stations=[actor],
