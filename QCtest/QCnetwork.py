@@ -17,22 +17,26 @@ from requsim.libs.aux_functions import distance
 from verification_rounds import VerificationProtocol
 from voting_rounds import VotingProtocol
 import QC_aux_functions as qaf
+from requsim.tools.noise_channels import w_noise_channel, z_noise_channel
+from requsim.noise import NoiseChannel
 
 C = 2e8  # speed of light
 
 N = 5  # number of users
-C = 3
-M = 4
+Candidates = 2
+M = 13
 P_LINK = 0.80
 T_DP = 100e-3
 LAMBDA_BSM = 0.99
 L_ATT = 22e3
-delta = 1 / 2
+LENGTH = 1
+delta = 1
 rng = np.random.default_rng()
-votes = rng.choice(C, size=N)
-K = int(np.ceil(np.log2(C)))
+votes = rng.choice(Candidates, size=N)
+K = int(np.ceil(np.log2(Candidates)))
 P = 2
 speedMeas = 1e-9
+initial_noise = 0
 
 # put stations around source in a circle
 radius = 2e3
@@ -41,8 +45,18 @@ radius = 2e3
 radiants = np.linspace(0, 2 * np.pi, N + 1)
 
 
+def construct_white_noise_channel(error_prob):
+    def white_noise_func(rho):
+        return w_noise_channel(rho=rho, alpha=error_prob)
+
+    return NoiseChannel(n_qubits=1, channel_function=white_noise_func)
+
+
 def state_generation(source):
     ghz_state = mat.ghz(N) @ mat.H(mat.ghz(N))
+    w_channel = construct_white_noise_channel(initial_noise)
+    for i in range(N):
+        ghz_state = w_channel.apply_to(rho=ghz_state, qubit_indices=[i])
     return ghz_state
 
 
@@ -52,7 +66,7 @@ def time_distribution(source):
     )
     trial_time = 2 * comm_distance / C
     eta = P_LINK * np.exp((-1) * comm_distance / L_ATT)
-    num_trials = np.random.geometric(eta)
+    num_trials = np.random.geometric(eta**N)
     time_taken = num_trials * trial_time
     return time_taken
 
@@ -63,11 +77,12 @@ world = World()
 stations = []
 for i in range(N):
     station = Station(
-        world=world, position=np.array([np.cos(radiants[i]), np.sin(radiants[i])])
+        world=world,
+        position=np.array([LENGTH * np.cos(radiants[i]), LENGTH * np.sin(radiants[i])]),
     )
     stations += [station]
 
-# creating sources
+# creating source(s)
 source = MultiSchedulingSource(
     world=world,
     position=np.array([0, 0]),
@@ -95,7 +110,7 @@ ver_protocol.setup(world=world, communication_speed=C, rng=rng)
 # output to check later
 print(votes)
 print(uniq_ordering)
-
+all_ratios = []
 for k in range(K):
     rand_bits = np.zeros(N)
     for p in range(P):
@@ -140,7 +155,9 @@ for k in range(K):
                         ratios[1][ver_agent] += 1
                 else:
                     # vote
-                    if (ratios[1] / ratios[0] > delta).any():
+                    # ignore the ratios where ratio[0] is 0 (no verification has happend there yet)
+                    ratio_ind = np.argwhere(ratios[0] > 0)
+                    if (ratios[1, ratio_ind] / ratios[0, ratio_ind] > delta).any():
                         # abort
                         raise RuntimeError(
                             "in round ",
@@ -149,6 +166,7 @@ for k in range(K):
                             n,
                             " the state could not be verified",
                             ratios,
+                            ratios[1] / ratios[0],
                         )
                     voted = True
                     vot_protocol.check(message={"event": "send"})
@@ -175,6 +193,7 @@ for k in range(K):
                         else:
                             inp = meas_res[j]
                         tally[k][p][n][j] = inp
+            all_ratios += [ratios]
 # TODO: verification of the tally for all actors
 outcome_votes_bin = np.sum(np.sum(tally, axis=3), axis=1) % 2
 outcome_votes_bin = np.transpose(outcome_votes_bin, (1, 0))
@@ -189,3 +208,42 @@ for binl in outcome_votes_bin:
 print(outcome_votes)
 print("outcome votes statistic", np.unique(outcome_votes, return_counts=True))
 print("input votes statistic", np.unique(votes, return_counts=True))
+
+# from here we want to make a graph
+import matplotlib.pyplot as plt
+
+# print(len(all_ratios))
+# print(all_ratios[0].shape)
+rates = np.array([r[1] / r[0] for r in all_ratios]).reshape(P, N, N)
+
+print(rates)
+bg = "#2e3440"
+colors = ["#d4a5ff", "#ffa43a"][:P]
+alphas = np.linspace(0.45, 1.0, N)
+
+fig, ax = plt.subplots(figsize=(13, 5.5))
+
+# bars
+
+group_width = 0.8
+w = group_width / (P * N)
+offsets = (np.arange(P * N) - (P * N - 1) / 2) * w
+
+for p in range(P):
+    for n in range(N):
+        x = np.arange(N) + offsets[p * N + n]
+        ax.bar(x, rates[p, n], width=w, color=colors[p], alpha=alphas[n], linewidth=0.3)
+
+# ax.axhline(delta, color="#c58af9", linestyle="--", linewidth=2)
+
+ax.set_xticks(np.arange(N))
+ax.set_xticklabels([f"Voter {i+1}" for i in range(N)])
+ax.set_xlim(-0.55, N - 0.45)
+ax.set_ylim(0, np.max(rates))
+ax.set_xlabel("Voters", fontsize=13)
+ax.set_ylabel("Failure rate", fontsize=13)
+ax.grid(axis="both", linestyle="--", alpha=0.15)
+ax.set_axisbelow(True)
+
+plt.tight_layout()
+plt.savefig("../images/test.png")
