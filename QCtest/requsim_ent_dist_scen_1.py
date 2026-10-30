@@ -15,6 +15,7 @@ from requsim.tools.protocol import Protocol
 from requsim.tools.evaluation import standard_graph_state_evaluation
 from requsim.tools.noise_channels import w_noise_channel, z_noise_channel
 from requsim.noise import NoiseChannel, NoiseModel
+from requsim.events import MultiSourceEvent
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -187,9 +188,7 @@ def run(w_noise, max_iter, graph, params):
         )
         trial_time = 2 * comm_distance / C
         eta = P_LINK * np.exp(-comm_distance / L_ATT)
-        num_trials = np.random.geometric(
-            eta**4
-        )  # change here in terms of how many stations we have
+        num_trials = np.random.geometric(eta**graph.N)
         time_taken = num_trials * trial_time
         return time_taken
 
