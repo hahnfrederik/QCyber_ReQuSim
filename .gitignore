@@ -211,3 +211,6 @@ fabric.properties
 
 # Claude
 .claude
+data/run_test.db
+data/runt_test.db
+QCtest/example_graphs/ghz_lc_graph_states.npz
