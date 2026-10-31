@@ -44,10 +44,10 @@ graph = GraphsReq(
     sets=[[i for i in range(1, g_size)], [0]],
 )
 
-white_noise_list = np.linspace(0.6, 1, num=20)
-mem_noise_list = np.logspace(-3, 1, num=20, base=2)
+white_noise_list = np.linspace(0.6, 1, num=5)
+mem_noise_list = np.logspace(-3, 1, num=5, base=2)
 error_list = list(product(white_noise_list, mem_noise_list))
-max_iter = 100
+max_iter = 10
 
 w_noise = error_list[c_line_arg][0]
 mem_noise = error_list[c_line_arg][1]
@@ -88,7 +88,7 @@ index = pd.MultiIndex.from_product(
 
 results_1 = pd.DataFrame(
     data=result_list_1,
-    index=white_noise_list,
+    index=[w_noise],
     # index = index,
     columns=[
         "raw_rate",
@@ -163,35 +163,49 @@ import fcntl, time
 
 db_path = "data/run_test.db"
 
-
-def locked_connect(timeout=300):
-    lock_fd = open(db_path + ".lock", "w")
-    deadline = time.time() + timeout
-    delay = 0.05
-    while True:
-        try:
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            break
-        except BlockingIOError:
-            if time.time() > deadline:
-                lock_fd.close()
-                raise TimeoutError("Lock timeout")
-            time.sleep(delay)
-            delay = min(delay + np.random.uniform() * 0.05, 1)
-    return lock_fd, duckdb.connect(db_path)
+print(results_1)
 
 
-def release(lock_fd, con):
-    try:
-        con.close()
-    finally:
-        fcntl.flock(lock_fd, fcntl.LOCK_UN)
-        lock_fd.close()
+con = duckdb.connect()
+con.execute("CREATE TABLE result AS SELECT * from results_1")
+con.execute(
+    f"COPY result TO 'data/diffW_scen_1/output_{c_line_arg}.parquet' (FORMAT PARQUET)"
+)
+con.close()
+con = duckdb.connect()
+con.execute("CREATE TABLE result AS SELECT * from results_2")
+con.execute(
+    f"COPY result TO 'data/diffW_scen_2/output_{c_line_arg}.parquet' (FORMAT PARQUET)"
+)
+con.close()
+# def locked_connect(timeout=300):
+#     lock_fd = open(db_path + ".lock", "w")
+#     deadline = time.time() + timeout
+#     delay = 0.05
+#     while True:
+#         try:
+#             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+#             break
+#         except BlockingIOError:
+#             if time.time() > deadline:
+#                 lock_fd.close()
+#                 raise TimeoutError("Lock timeout")
+#             time.sleep(delay)
+#             delay = min(delay + np.random.uniform() * 0.05, 1)
+#     return lock_fd, duckdb.connect(db_path)
 
 
-lock_fd, con = locked_connect()
-try:
-    con.execute("INSERT INTO diffW_scen_1 BY NAME SELECT * from results_1")
-    con.execute("INSERT INTO diffW_scen_2 BY NAME SELECT * from results_2")
-finally:
-    release(lock_fd, con)
+# def release(lock_fd, con):
+#     try:
+#         con.close()
+#     finally:
+#         fcntl.flock(lock_fd, fcntl.LOCK_UN)
+#         lock_fd.close()
+
+
+# lock_fd, con = locked_connect()
+# try:
+#     con.execute("INSERT INTO diffW_scen_1 BY NAME SELECT * from results_1")
+#     con.execute("INSERT INTO diffW_scen_2 BY NAME SELECT * from results_2")
+# finally:
+#     release(lock_fd, con)
