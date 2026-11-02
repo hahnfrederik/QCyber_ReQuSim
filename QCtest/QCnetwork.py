@@ -34,7 +34,7 @@ delta = 1
 rng = np.random.default_rng()
 votes = rng.choice(Candidates, size=N)
 K = int(np.ceil(np.log2(Candidates)))
-P = 2
+P = 9
 speedMeas = 1e-9
 initial_noise = 0
 
@@ -216,9 +216,10 @@ import matplotlib.pyplot as plt
 # print(all_ratios[0].shape)
 rates = np.array([r[1] / r[0] for r in all_ratios]).reshape(P, N, N)
 
-print(rates)
-bg = "#2e3440"
-colors = ["#d4a5ff", "#ffa43a"][:P]
+#defining some colors
+colors = ["#d4a5ff", "#ff9bff", "#ff8cff", "#ff7bff", "#ff8fb8",
+          "#ff9d85", "#ffa43a", "#ffc000", "#c3d400"]
+colors = colors[:P]
 alphas = np.linspace(0.45, 1.0, N)
 
 fig, ax = plt.subplots(figsize=(13, 5.5))
@@ -246,4 +247,4 @@ ax.grid(axis="both", linestyle="--", alpha=0.15)
 ax.set_axisbelow(True)
 
 plt.tight_layout()
-plt.savefig("../images/test.png")
+plt.savefig("test.png")
