@@ -25,9 +25,8 @@ C = 2e8  # speed of light
 N = 5  # number of users
 Candidates = 2
 M = 13
-P_LINK = 0.80
+P_LINK = 0.90
 T_DP = 100e-3
-LAMBDA_BSM = 0.99
 L_ATT = 22e3
 LENGTH = 1
 delta = 1
@@ -36,7 +35,8 @@ votes = rng.choice(Candidates, size=N)
 K = int(np.ceil(np.log2(Candidates)))
 P = 9
 speedMeas = 1e-9
-initial_noise = 0
+#white noise is 1 no noise, 0 maximum noise
+initial_noise = 0.95
 
 # put stations around source in a circle
 radius = 2e3
@@ -182,7 +182,7 @@ for k in range(K):
                         if j == agent:
                             if p == P - 1:
                                 # we also need to check that it all fits
-                                if rand_bits[j] == int(votes_bin[agent][k]):
+                                if (rand_bits[j]%2) == int(votes_bin[agent][k]):
                                     inp = (0 + meas_res[j]) % 2
                                 else:
                                     inp = (1 + meas_res[j]) % 2
