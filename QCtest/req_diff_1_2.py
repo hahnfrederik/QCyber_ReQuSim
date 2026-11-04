@@ -27,10 +27,11 @@ import time
 
 # print(P_LINK, LENGTH, g_size)
 
-
+size_w_noise = 20
+size_mem_noise = 20
 c_line_arg = int(sys.argv[1])
-P_LINK = 0.8
-LENGTH = 20e3
+P_LINK = 0.6
+LENGTH = 1e3
 g_size = 4
 params = {
     "P_LINK": P_LINK,
@@ -44,27 +45,33 @@ graph = GraphsReq(
     sets=[[i for i in range(1, g_size)], [0]],
 )
 
-white_noise_list = np.linspace(0.6, 1, num=5)
-mem_noise_list = np.logspace(-3, 1, num=5, base=2)
-error_list = list(product(white_noise_list, mem_noise_list))
-max_iter = 10
+white_noise_list = np.linspace(0.6, 1, num=size_w_noise)
+mem_noise_list = np.logspace(-3, 1, num=size_mem_noise, base=2)
+w_noise_ind=c_line_arg//size_w_noise
+mem_noise_ind = c_line_arg%size_mem_noise
+#error_list = list(product(white_noise_list, mem_noise_list))
+max_iter = 10000
 
-w_noise = error_list[c_line_arg][0]
-mem_noise = error_list[c_line_arg][1]
-raw_data_1 = [
-    run_1(
-        w_noise=w_noise,
-        graph=graph,
-        max_iter=max_iter,
-        params=params,
-    ).data
-    # for w_noise in white_noise_list
-    # for mem_noise in mem_noise_list
-]
-result_list_1 = [
-    standard_graph_state_evaluation(data_frame=df, graph=graph, option="comp")
-    for df in raw_data_1
-]
+#w_noise = error_list[c_line_arg][0]
+w_noise = white_noise_list[w_noise_ind]
+#mem_noise = error_list[c_line_arg][1]
+mem_noise = mem_noise_list[mem_noise_ind]
+if c_line_arg%size_w_noise == 0:
+    raw_data_1 = [
+        run_1(
+            w_noise=w_noise,
+            graph=graph,
+            max_iter=max_iter,
+            params=params,
+        ).data
+        # for w_noise in white_noise_list
+        # for mem_noise in mem_noise_list
+    ]
+    result_list_1 = [
+        standard_graph_state_evaluation(data_frame=df, graph=graph, option="comp")
+        for df in raw_data_1
+    ]
+
 raw_data_2 = [
     run_2(
         w_noise=w_noise,
@@ -85,22 +92,22 @@ index = pd.MultiIndex.from_product(
     [[mem_noise], [w_noise]], names=["mem_noise", "white_noise"]
 )
 # index = white_noise_list
-
-results_1 = pd.DataFrame(
-    data=result_list_1,
-    index=[w_noise],
-    # index = index,
-    columns=[
-        "raw_rate",
-        "fidelity",
-        "fidelity_std_err",
-        "key_per_time",
-        "key_per_time_std_err",
-        "e_x",
-        "e_z",
-        "max_vote_rate",
-    ],
-)
+if c_line_arg%size_w_noise == 0:
+    results_1 = pd.DataFrame(
+        data=result_list_1,
+        index=[w_noise],
+        # index = index,
+        columns=[
+            "raw_rate",
+            "fidelity",
+            "fidelity_std_err",
+            "key_per_time",
+            "key_per_time_std_err",
+            "e_x",
+            "e_z",
+            "max_vote_rate",
+        ],
+    )
 results_2 = pd.DataFrame(
     data=result_list_2,
     index=index,
@@ -146,13 +153,13 @@ results_2 = pd.DataFrame(
 #     f"../images/diffW/diffW_size{g_size}_{P_LINK}_{LENGTH/10e3}km.png",
 #     bbox_inches="tight",
 # )
+if c_line_arg%size_w_noise == 0:
+    results_1 = results_1.reset_index().rename(columns={"index": "white_noise"})
+    results_1["P_LINK"] = P_LINK
+    results_1["LENGTH"] = LENGTH
+    results_1["N"] = g_size
 
-results_1 = results_1.reset_index().rename(columns={"index": "white_noise"})
-results_1["P_LINK"] = P_LINK
-results_1["LENGTH"] = LENGTH
-results_1["N"] = g_size
 results_2 = results_2.reset_index()
-
 results_2["P_LINK"] = P_LINK
 results_2["LENGTH"] = LENGTH
 results_2["N"] = g_size
@@ -163,15 +170,16 @@ import fcntl, time
 
 db_path = "data/run_test.db"
 
-print(results_1)
 
 
-con = duckdb.connect()
-con.execute("CREATE TABLE result AS SELECT * from results_1")
-con.execute(
-    f"COPY result TO 'data/diffW_scen_1/output_{c_line_arg}.parquet' (FORMAT PARQUET)"
-)
-con.close()
+if c_line_arg%size_w_noise == 0: 
+    con = duckdb.connect()
+    con.execute("CREATE TABLE result AS SELECT * from results_1")
+    con.execute(
+        f"COPY result TO 'data/diffW_scen_1/output_{c_line_arg}.parquet' (FORMAT PARQUET)"
+    )
+    con.close()
+    
 con = duckdb.connect()
 con.execute("CREATE TABLE result AS SELECT * from results_2")
 con.execute(
